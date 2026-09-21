@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="FactionDefinition" load_steps=2 format=3 uid="uid://bembercovenant0001"]
+
+[ext_resource type="Script" path="res://core/faction_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"ember_covenant"
+display_name = "Ember Covenant"
+description = "Enemy faction for Phase 1 battlefield (red)."
+primary_color = Color(0.92, 0.26, 0.2, 1)
+secondary_color = Color(0.25, 0.08, 0.08, 1)

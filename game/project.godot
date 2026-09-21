@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Aether Crown"
 config/description="3D quarter-view RTS. Desktop quality first (Forward Plus). Keep renderer-dependent features decoupled for possible future Web build."
-run/main_scene="res://scenes/maps/test_world.tscn"
+run/main_scene="res://scenes/maps/phase1_battlefield.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
