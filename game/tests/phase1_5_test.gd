@@ -97,13 +97,13 @@ func _process(_delta: float) -> bool:
 				return _fail("no player HQ")
 			if _map.enemy_hq == null or not _map.enemy_hq.is_alive():
 				return _fail("no enemy HQ")
-			if absf(_eco_p.material - 150.0) > 0.01:
-				return _fail("start material not 150")
+			if absf(_eco_p.material - 120.0) > 0.01:
+				return _fail("start material not 120")
 			if _eco_p.pop_used != 0 or _eco_p.pop_max != 40:
 				return _fail("start pop not 0/40")
 			if _outpost.owner_side != RTSOutpost.Owner.NEUTRAL:
 				return _fail("outpost not neutral at start")
-			_ok("initial state 5v5, HQs alive, 150 material, neutral outpost")
+			_ok("initial state 5v5, HQs alive, 120 material, neutral outpost")
 			var rig := get_first_node_in_group("rts_camera") as Node3D
 			var hq_pos: Vector3 = _map.player_hq.global_position
 			rig.position = Vector3(hq_pos.x, 0, hq_pos.z)
@@ -130,9 +130,9 @@ func _process(_delta: float) -> bool:
 			_goto(2, 600)
 		2:
 			if _outpost.owner_side == RTSOutpost.Owner.PLAYER:
-				if absf(_eco_p.bonus_income - 3.0) > 0.01:
+				if absf(_eco_p.bonus_income - 1.5) > 0.01:
 					return _fail("outpost bonus not applied")
-				_ok("player captured outpost, income bonus +3/s")
+				_ok("player captured outpost, income bonus +1.5/s")
 				var foes := _units(false)
 				(foes[0] as Node3D).global_position = _outpost.global_position + Vector3(0, 0, 3)
 				_goto(3, 90)
@@ -160,7 +160,7 @@ func _process(_delta: float) -> bool:
 			_goto(5, 800)
 		5:
 			if _outpost.owner_side == RTSOutpost.Owner.ENEMY:
-				if absf(_eco_e.bonus_income - 3.0) > 0.01:
+				if absf(_eco_e.bonus_income - 1.5) > 0.01:
 					return _fail("enemy bonus not applied")
 				if absf(_eco_p.bonus_income) > 0.01:
 					return _fail("player bonus not cleared")
@@ -182,7 +182,7 @@ func _process(_delta: float) -> bool:
 			var before: float = _eco_p.material
 			if _q_p.try_enqueue(InfDef, _eco_p) != "ok":
 				return _fail("infantry enqueue rejected")
-			if absf(_eco_p.material - (before - 50.0)) > 0.01:
+			if absf(_eco_p.material - (before - 70.0)) > 0.01:
 				return _fail("material not consumed")
 			_eco_p.material = 10.0
 			if _q_p.try_enqueue(MarDef, _eco_p) != "no_material":
@@ -236,7 +236,7 @@ func _process(_delta: float) -> bool:
 				if _expired():
 					return _fail("AI did not enter DEFEND (plan=%d)" % _strat.plan)
 				return false
-			if _q_e.is_empty() and _units(false).size() <= 5 and _eco_e.material >= 150.0:
+			if _q_e.is_empty() and _units(false).size() <= 5 and _eco_e.material >= 120.0:
 				return _fail("AI never spent material on first think")
 			_ok("AI DEFEND_OUTPOST with enemy-owned outpost, wallet in use")
 			_eco_e.material = 600.0
@@ -262,7 +262,7 @@ func _process(_delta: float) -> bool:
 				return _fail("AI army not moving to outpost")
 			_ok("AI marches on outpost")
 			var hq_pos: Vector3 = _map.enemy_hq.global_position
-			for i in range(5):
+			for i in range(7):
 				_map.spawn_unit(InfDef, false, hq_pos + Vector3(8.0 + float(i), 0, 8.0))
 			_goto(12, 700)
 		12:
@@ -374,7 +374,7 @@ func _assert_fresh(tag: String) -> bool:
 		print("PHASE15_TEST NG %s: player HQ hp not reset" % tag)
 		quit(1)
 		return false
-	if absf(_eco_p.material - 150.0) > 40.0:
+	if absf(_eco_p.material - 120.0) > 40.0:
 		print("PHASE15_TEST NG %s: material not reset (%d)" % [tag, int(_eco_p.material)])
 		quit(1)
 		return false

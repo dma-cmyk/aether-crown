@@ -12,9 +12,9 @@ const MarksmanDef: UnitDefinition = preload("res://resources/units/gf_marksman.t
 const HeavyDef: UnitDefinition = preload("res://resources/units/gf_heavy_guard.tres")
 const HqDef: BuildingDefinition = preload("res://resources/buildings/gf_hq.tres")
 
-const START_MATERIAL: float = 150.0
-const BASE_INCOME: float = 4.0
-const OUTPOST_BONUS: float = 3.0
+const START_MATERIAL: float = 120.0
+const BASE_INCOME: float = 2.0
+const OUTPOST_BONUS: float = 1.5
 const MAX_POP: int = 40
 const PLAYER_BASE_POS := Vector3(-26, 0, -26)
 const ENEMY_BASE_POS := Vector3(26, 0, 26)
@@ -420,7 +420,7 @@ func _on_outpost_owner_changed(new_owner: int) -> void:
 	economy_p.bonus_income = OUTPOST_BONUS if new_owner == RTSOutpost.Owner.PLAYER else 0.0
 	economy_e.bonus_income = OUTPOST_BONUS if new_owner == RTSOutpost.Owner.ENEMY else 0.0
 	print("OUTPOST owner=", outpost.owner_name(), " bonus=", OUTPOST_BONUS)
-	_hud().call("toast", "Outpost captured: %s (+%d/s)" % [outpost.owner_name(), int(OUTPOST_BONUS)])
+	_hud().call("toast", "Outpost captured: %s (+%.1f/s)" % [outpost.owner_name(), OUTPOST_BONUS])
 
 
 func _wire_strategist() -> void:

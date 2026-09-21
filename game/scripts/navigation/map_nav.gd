@@ -87,8 +87,9 @@ func _build_ground(ground_parent: Node3D) -> void:
 			var uv10 := Vector2(ix + 1, iz) / float(n) * 8.0
 			var uv01 := Vector2(ix, iz + 1) / float(n) * 8.0
 			var uv11 := Vector2(ix + 1, iz + 1) / float(n) * 8.0
-			_add_tri(st, p00, p01, p10, uv00, uv01, uv10)
-			_add_tri(st, p10, p01, p11, uv10, uv01, uv11)
+			# Godot front faces are clockwise: order verts so the normal points +Y.
+			_add_tri(st, p00, p10, p01, uv00, uv10, uv01)
+			_add_tri(st, p10, p11, p01, uv10, uv11, uv01)
 	st.generate_normals()
 	var mesh := st.commit()
 	var mat := StandardMaterial3D.new()

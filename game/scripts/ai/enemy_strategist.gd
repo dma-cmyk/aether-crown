@@ -11,7 +11,7 @@ enum Plan { BUILD_FORCE, CAPTURE_OUTPOST, DEFEND_OUTPOST, ATTACK_PLAYER_HQ }
 const THINK_INTERVAL: float = 2.0
 const REISSUE_INTERVAL: float = 12.0
 const CAPTURE_ARMY: int = 4
-const ATTACK_ARMY: int = 10
+const ATTACK_ARMY: int = 12
 
 var ai_enabled: bool = true
 var plan: int = Plan.BUILD_FORCE
