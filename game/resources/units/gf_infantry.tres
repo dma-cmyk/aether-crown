@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="UnitDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/unit_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"gf_infantry"
+display_name = "Gearforge Infantry"
+description = "Phase 1.5 basic soldier. Cheap, standard HP/speed, short-mid range."
+faction_id = &"gearforge"
+cost_metal = 50
+cost_aether = 0
+build_time_sec = 8.0
+supply_cost = 1
+max_hp = 110.0
+move_speed = 6.0
+attack_damage = 11.0
+attack_range = 13.0
+attack_interval_sec = 1.1
+sight_range = 24.0
+poly_budget = "low_mid"
+lod_distances = Vector3(30, 60, 120)

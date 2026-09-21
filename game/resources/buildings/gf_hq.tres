@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/building_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"gf_hq"
+display_name = "Gearforge HQ"
+description = "Phase 1.5 headquarters. Produces units, generates Material."
+faction_id = &"gearforge"
+cost_metal = 0
+cost_aether = 0
+build_time_sec = 0.0
+max_hp = 1200.0
+footprint = Vector2(7, 6)
+blocks_navigation = true
+poly_budget = "mid"

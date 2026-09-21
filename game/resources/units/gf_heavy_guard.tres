@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="UnitDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/unit_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"gf_heavy_guard"
+display_name = "Gearforge Heavy Guard"
+description = "Phase 1.5 frontline tank. High HP, short range, slow."
+faction_id = &"gearforge"
+cost_metal = 120
+cost_aether = 0
+build_time_sec = 16.0
+supply_cost = 2
+max_hp = 260.0
+move_speed = 4.4
+attack_damage = 14.0
+attack_range = 9.0
+attack_interval_sec = 1.3
+sight_range = 20.0
+poly_budget = "low_mid"
+lod_distances = Vector3(30, 60, 120)

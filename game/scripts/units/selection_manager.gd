@@ -46,8 +46,8 @@ func get_camera() -> Camera3D:
 
 func clear_selection() -> void:
 	for u in selected:
-		if is_instance_valid(u):
-			(u as RTSUnit).set_selected(false)
+		if is_instance_valid(u) and (u as Node).has_method("set_selected"):
+			(u as Node).call("set_selected", false)
 	selected.clear()
 	selection_changed.emit()
 
@@ -63,15 +63,18 @@ func selected_avg_hp() -> float:
 		return 0.0
 	var sum := 0.0
 	for u in selected:
-		var unit := u as RTSUnit
-		sum += clampf(unit.hp / maxf(1.0, unit.max_hp), 0.0, 1.0)
+		var n := u as Node
+		var hp: float = float(n.get("hp"))
+		var max_hp: float = maxf(1.0, float(n.get("max_hp")))
+		sum += clampf(hp / max_hp, 0.0, 1.0)
 	return sum / float(selected.size())
 
 
 func _prune() -> void:
 	var kept: Array = []
 	for u in selected:
-		if is_instance_valid(u) and (u as RTSUnit).is_alive():
+		var n := u as Node
+		if is_instance_valid(n) and n.has_method("is_alive") and bool(n.call("is_alive")):
 			kept.append(u)
 	selected = kept
 
@@ -130,19 +133,32 @@ func _end_press(pos: Vector2, additive: bool) -> void:
 
 
 func _click_select(pos: Vector2, additive: bool) -> void:
-	var unit := _pick_unit(pos)
-	if unit != null and unit.is_player:
+	var target := _pick_target(pos)
+	if _is_owned_selectable(target):
 		if additive:
-			if not selected.has(unit):
-				selected.append(unit)
-				unit.set_selected(true)
+			if not selected.has(target):
+				selected.append(target)
+				(target as Node).call("set_selected", true)
 		else:
 			clear_selection()
-			selected.append(unit)
-			unit.set_selected(true)
+			selected.append(target)
+			(target as Node).call("set_selected", true)
 		selection_changed.emit()
 	elif not additive:
 		clear_selection()
+
+
+## Owned player unit or player building (HQ). Enemy/outpost are not selectable.
+func _is_owned_selectable(n: Node) -> bool:
+	if n == null or not is_instance_valid(n):
+		return false
+	if not n.has_method("is_alive") or not n.has_method("set_selected"):
+		return false
+	if not bool(n.call("is_alive")):
+		return false
+	if not ("is_player" in n) or not bool(n.get("is_player")):
+		return false
+	return (n is RTSUnit) or (n is RTSBuilding)
 
 
 func _box_select(a: Vector2, b: Vector2, additive: bool) -> void:
@@ -170,8 +186,8 @@ func _click_attack_move(pos: Vector2) -> void:
 	_refresh_refs()
 	if _orders == null:
 		return
-	var target := _pick_unit(pos)
-	if target != null and not target.is_player:
+	var target := _pick_target(pos)
+	if _is_foe_damageable(target):
 		_orders.issue_attack(selected, target)
 		return
 	var ground := _pick_ground(pos)
@@ -190,8 +206,8 @@ func _issue_right_click(pos: Vector2) -> void:
 	_refresh_refs()
 	if _orders == null:
 		return
-	var target := _pick_unit(pos)
-	if target != null and not target.is_player:
+	var target := _pick_target(pos)
+	if _is_foe_damageable(target):
 		_orders.issue_attack(selected, target)
 		return
 	var ground := _pick_ground(pos)
@@ -199,16 +215,35 @@ func _issue_right_click(pos: Vector2) -> void:
 		_orders.issue_move(selected, ground)
 
 
-func _pick_unit(pos: Vector2) -> RTSUnit:
+## Enemy unit or enemy building: valid attack target for player selection.
+func _is_foe_damageable(n: Node) -> bool:
+	if n == null or not is_instance_valid(n):
+		return false
+	if not n.has_method("is_alive") or not n.has_method("take_damage"):
+		return false
+	if not bool(n.call("is_alive")):
+		return false
+	if not ("is_player" in n):
+		return false
+	return not bool(n.get("is_player"))
+
+
+## Picks the topmost damageable under the cursor: player/enemy unit or
+## building. Phase 1 maps only spawn units, so Phase 1 picks are unchanged.
+func _pick_target(pos: Vector2) -> Node3D:
 	var params := PhysicsRayQueryParameters3D.create(_ray_origin(pos), _ray_origin(pos) + _ray_dir(pos) * 300.0)
 	params.collision_mask = UNIT_MASK
 	var hit := _space().intersect_ray(params)
 	if hit.is_empty():
 		return null
 	var node := hit.get("collider") as Node
-	while node != null and not (node is RTSUnit):
+	while node != null and not (node is RTSUnit) and not (node is RTSBuilding):
 		node = node.get_parent()
-	return node as RTSUnit
+	return node as Node3D
+
+
+func _pick_unit(pos: Vector2) -> RTSUnit:
+	return _pick_target(pos) as RTSUnit
 
 
 func _pick_ground(pos: Vector2) -> Vector3:

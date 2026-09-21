@@ -7,6 +7,8 @@ extends CharacterBody3D
 
 signal died(unit: RTSUnit)
 signal damaged(unit: RTSUnit)
+## Emitted each time this unit fires (Phase 1.5 FX hook; no Phase 1 listener).
+signal fired(attacker: RTSUnit, target_pos: Vector3)
 
 enum State { IDLE, MOVING, CHASING, ATTACKING, DEAD }
 
@@ -31,8 +33,13 @@ var sight_range: float = 24.0
 
 var state: int = State.IDLE
 var selected: bool = false
+## Phase 1.5 match maps set this true so front lines stay readable.
+## Phase 1 default (false) keeps the original show-on-damage/select behavior.
+var always_show_hp: bool = false
 var guard_pos: Vector3 = Vector3.ZERO
-var forced_target: RTSUnit = null
+## Damageable target: an RTSUnit or an RTSBuilding (duck-typed via
+## is_alive/take_damage/is_player). Phase 1 maps only contain units.
+var forced_target: Node3D = null
 var attack_moving: bool = false
 var attack_move_dest: Vector3 = Vector3.ZERO
 var move_dest: Vector3 = Vector3.ZERO
@@ -48,7 +55,7 @@ var _repath_left: float = 0.0
 var _stuck_time: float = 0.0
 var _last_order_dist: float = -1.0
 var _push_left: float = 0.0
-var _soft_target: RTSUnit = null
+var _soft_target: Node3D = null
 var _soft_left: float = 0.0
 var _sep: Vector3 = Vector3.ZERO
 var _sep_tick: int = 0
@@ -156,14 +163,29 @@ func order_move(dest: Vector3) -> void:
 	nav.target_position = dest
 
 
-func order_attack(target: RTSUnit) -> void:
-	if not is_alive() or target == null or not target.is_alive():
+func order_attack(target: Node3D) -> void:
+	if not is_alive() or not _is_foe_target(target):
 		return
 	attack_moving = false
 	has_move_order = false
 	forced_target = target
 	state = State.CHASING
 	_repath_left = 0.0
+
+
+## Shared damageable check: enemy unit or enemy building, alive.
+func _is_foe_target(n: Node) -> bool:
+	if n == null or n == self:
+		return false
+	if not is_instance_valid(n):
+		return false
+	if not n.has_method("is_alive") or not n.has_method("take_damage"):
+		return false
+	if not bool(n.call("is_alive")):
+		return false
+	if not ("is_player" in n):
+		return false
+	return bool(n.get("is_player")) != is_player
 
 
 func order_attack_move(dest: Vector3) -> void:
@@ -223,9 +245,9 @@ func on_confirmed_kill() -> void:
 		_soft_left = 3.0
 
 
-func _valid_soft_target() -> RTSUnit:
+func _valid_soft_target() -> Node3D:
 	if _soft_target != null:
-		if not is_instance_valid(_soft_target) or not _soft_target.is_alive():
+		if not is_instance_valid(_soft_target) or not _is_foe_target(_soft_target):
 			_soft_target = null
 			_soft_left = 0.0
 			return null
@@ -244,11 +266,11 @@ func _physics_process(delta: float) -> void:
 	_scan_left -= delta
 	_repath_left -= delta
 	_soft_left = maxf(0.0, _soft_left - delta)
-	if forced_target != null and (not is_instance_valid(forced_target) or not forced_target.is_alive()):
+	if forced_target != null and not _is_foe_target(forced_target):
 		forced_target = null
 		state = State.IDLE
 
-	var enemy: RTSUnit = forced_target
+	var enemy: Node3D = forced_target
 	if enemy == null and _scan_left <= 0.0:
 		_scan_left = SCAN_INTERVAL
 		enemy = _nearest_enemy(sight_range)
@@ -279,7 +301,7 @@ func _physics_process(delta: float) -> void:
 		_snap_ground()
 
 
-func _engage(enemy: RTSUnit, delta: float, aggressive: bool) -> void:
+func _engage(enemy: Node3D, delta: float, aggressive: bool) -> void:
 	var to: Vector3 = enemy.global_position - global_position
 	to.y = 0.0
 	var dist := to.length()
@@ -295,6 +317,7 @@ func _engage(enemy: RTSUnit, delta: float, aggressive: bool) -> void:
 		_face(to, delta)
 		if _cooldown <= 0.0:
 			_cooldown = attack_interval
+			fired.emit(self, enemy.global_position)
 			enemy.take_damage(attack_damage, self)
 	else:
 		state = State.CHASING
@@ -351,20 +374,25 @@ func _compute_separation() -> Vector3:
 	return push * SEPARATION_FORCE
 
 
-func _nearest_enemy(max_dist: float) -> RTSUnit:
-	var best: RTSUnit = null
+## Scans live foes: enemy units plus enemy buildings (HQs). Phase 1 maps
+## have no buildings, so Phase 1 behavior is unchanged.
+func _nearest_enemy(max_dist: float) -> Node3D:
+	var best: Node3D = null
 	var best_d := max_dist
 	var others := get_tree().get_nodes_in_group("rts_units")
+	others.append_array(get_tree().get_nodes_in_group("rts_buildings"))
 	for o in others:
-		var u := o as RTSUnit
-		if u == null or u == self or not u.is_alive():
+		if o == self:
 			continue
-		if u.is_player == is_player:
+		var n := o as Node3D
+		if n == null:
 			continue
-		var d := _flat_dist(global_position, u.global_position)
+		if not _is_foe_target(n):
+			continue
+		var d := _flat_dist(global_position, n.global_position)
 		if d < best_d:
 			best_d = d
-			best = u
+			best = n
 	return best
 
 
@@ -427,10 +455,13 @@ func _snap_ground() -> void:
 
 func _refresh_visuals() -> void:
 	ring.visible = selected and is_alive()
-	var show_hp := is_alive() and (selected or hp < max_hp)
+	var show_hp := is_alive() and (always_show_hp or selected or hp < max_hp)
 	hp_bg.visible = show_hp
 	hp_fg.visible = show_hp
 	if show_hp:
 		var frac := clampf(hp / maxf(1.0, max_hp), 0.0, 1.0)
+		var half_w := 0.45
+		if hp_fg.mesh is PlaneMesh:
+			half_w = (hp_fg.mesh as PlaneMesh).size.x * 0.5
 		hp_fg.scale = Vector3(maxf(0.001, frac), 1.0, 1.0)
-		hp_fg.position = Vector3(-0.45 * (1.0 - frac), 2.25, 0.012)
+		hp_fg.position = Vector3(-half_w * (1.0 - frac), hp_bg.position.y, hp_fg.position.z)

@@ -21,8 +21,12 @@ func issue_move(units: Array, dest: Vector3) -> void:
 			u.order_move(slots[i])
 
 
-func issue_attack(units: Array, target: RTSUnit) -> void:
-	if target == null or not target.is_alive():
+func issue_attack(units: Array, target: Node3D) -> void:
+	if target == null or not is_instance_valid(target):
+		return
+	if not target.has_method("is_alive") or not target.has_method("take_damage"):
+		return
+	if not bool(target.call("is_alive")):
 		return
 	for u in units:
 		var unit := u as RTSUnit
