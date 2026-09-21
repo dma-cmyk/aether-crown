@@ -24,6 +24,7 @@ var kills_by_player: int = 0
 var kills_by_enemy: int = 0
 var _elapsed: float = 0.0
 var _perf_left: float = 5.0
+var _pulse_left: float = 4.0
 var _auto_battle: bool = false
 
 @onready var map_nav: MapNav = $MapNav
@@ -58,6 +59,43 @@ func _process(delta: float) -> void:
 	if _perf_left <= 0.0:
 		_perf_left = 5.0
 		_log_perf()
+	_pulse_left -= delta
+	if _pulse_left <= 0.0:
+		_pulse_left = 4.0
+		_battle_pulse()
+
+
+## Re-engagement pulse: every 4s, point bloodied-but-idle units at the enemy
+## centroid via attack-move. Single O(n) pass, one path per idle unit per
+## pulse (never per-frame). Fresh reserves (not bloodied) are never touched.
+func _battle_pulse() -> void:
+	var p_idle: Array = []
+	var e_idle: Array = []
+	var p_pos := Vector3.ZERO
+	var p_n := 0
+	var e_pos := Vector3.ZERO
+	var e_n := 0
+	for o in get_tree().get_nodes_in_group("rts_units"):
+		var u := o as RTSUnit
+		if u == null or not u.is_alive():
+			continue
+		if u.is_player:
+			p_pos += u.global_position
+			p_n += 1
+			if u.state == RTSUnit.State.IDLE and u.bloodied:
+				p_idle.append(u)
+		else:
+			e_pos += u.global_position
+			e_n += 1
+			if u.state == RTSUnit.State.IDLE and u.bloodied:
+				e_idle.append(u)
+	if p_n == 0 or e_n == 0:
+		return
+	if p_idle.is_empty() and e_idle.is_empty():
+		return
+	orders.issue_attack_move(p_idle, e_pos / float(e_n))
+	orders.issue_attack_move(e_idle, p_pos / float(p_n))
+	print("PULSE idle_p=", p_idle.size(), " idle_e=", e_idle.size())
 
 
 func _log_perf() -> void:

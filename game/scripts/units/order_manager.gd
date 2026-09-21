@@ -58,5 +58,20 @@ func formation_slots(center: Vector3, count: int) -> Array:
 
 func _clamp_slot(p: Vector3) -> Vector3:
 	if _map_nav != null and _map_nav.has_method("clamp_inside"):
-		return _map_nav.call("clamp_inside", p)
+		p = _map_nav.call("clamp_inside", p)
+		if _map_nav.has_method("is_blocked") and bool(_map_nav.call("is_blocked", p.x, p.z)):
+			p = _nearest_free(p)
+	return p
+
+
+## Nudge a formation slot out of obstacle footprints (checked only on order,
+## never per-frame). Spiral samples at 1.5m / 3m rings.
+func _nearest_free(p: Vector3) -> Vector3:
+	for r in [1.5, 3.0]:
+		for k in range(8):
+			var a := TAU * float(k) / 8.0
+			var q := Vector3(p.x + cos(a) * r, 0, p.z + sin(a) * r)
+			q = _map_nav.call("clamp_inside", q)
+			if not bool(_map_nav.call("is_blocked", q.x, q.z)):
+				return q
 	return p

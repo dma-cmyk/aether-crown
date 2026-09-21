@@ -34,6 +34,9 @@ func _input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	# Clamp hitch deltas (shader compile on startup) so the camera never
+	# jumps meters in a single frame.
+	delta = minf(delta, 0.05)
 	var wish := Vector3.ZERO
 	var input_dir := Vector2.ZERO
 	input_dir.x = Input.get_axis("camera_left", "camera_right")

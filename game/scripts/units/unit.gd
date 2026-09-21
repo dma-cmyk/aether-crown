@@ -38,6 +38,9 @@ var attack_move_dest: Vector3 = Vector3.ZERO
 var move_dest: Vector3 = Vector3.ZERO
 var has_move_order: bool = false
 var kills: int = 0
+## True once the unit has dealt or taken damage. Only bloodied idle units
+## are re-pointed by the map battle pulse, so fresh reserves are never stolen.
+var bloodied: bool = false
 
 var _cooldown: float = 0.0
 var _scan_left: float = 0.0
@@ -45,6 +48,8 @@ var _repath_left: float = 0.0
 var _stuck_time: float = 0.0
 var _last_order_dist: float = -1.0
 var _push_left: float = 0.0
+var _soft_target: RTSUnit = null
+var _soft_left: float = 0.0
 var _sep: Vector3 = Vector3.ZERO
 var _sep_tick: int = 0
 var _map_nav: Node = null
@@ -178,6 +183,9 @@ func take_damage(amount: float, attacker: RTSUnit) -> void:
 	if not is_alive():
 		return
 	hp = maxf(0.0, hp - amount)
+	bloodied = true
+	if attacker != null and is_instance_valid(attacker):
+		attacker.bloodied = true
 	damaged.emit(self)
 	_refresh_visuals()
 	if hp <= 0.0:
@@ -188,6 +196,7 @@ func _die(attacker: RTSUnit) -> void:
 	state = State.DEAD
 	if attacker != null and is_instance_valid(attacker):
 		attacker.kills += 1
+		attacker.on_confirmed_kill()
 	set_deferred("collision_layer", 0)
 	set_deferred("collision_mask", 0)
 	ring.visible = false
@@ -200,12 +209,41 @@ func _die(attacker: RTSUnit) -> void:
 	tw.tween_callback(queue_free)
 
 
+## Event-driven reacquire after a kill: one wide scan (no per-frame cost).
+## Result is a soft target, so normal scan/leash rules still apply.
+func on_confirmed_kill() -> void:
+	if not is_alive():
+		return
+	bloodied = true
+	if forced_target != null or attack_moving or has_move_order:
+		return
+	var foe := _nearest_enemy(sight_range * 2.5)
+	if foe != null:
+		_soft_target = foe
+		_soft_left = 3.0
+
+
+func _valid_soft_target() -> RTSUnit:
+	if _soft_target != null:
+		if not is_instance_valid(_soft_target) or not _soft_target.is_alive():
+			_soft_target = null
+			_soft_left = 0.0
+			return null
+		if _flat_dist(global_position, _soft_target.global_position) > sight_range * 2.5:
+			_soft_target = null
+			_soft_left = 0.0
+			return null
+		return _soft_target
+	return null
+
+
 func _physics_process(delta: float) -> void:
 	if state == State.DEAD:
 		return
 	_cooldown = maxf(0.0, _cooldown - delta)
 	_scan_left -= delta
 	_repath_left -= delta
+	_soft_left = maxf(0.0, _soft_left - delta)
 	if forced_target != null and (not is_instance_valid(forced_target) or not forced_target.is_alive()):
 		forced_target = null
 		state = State.IDLE
@@ -214,6 +252,8 @@ func _physics_process(delta: float) -> void:
 	if enemy == null and _scan_left <= 0.0:
 		_scan_left = SCAN_INTERVAL
 		enemy = _nearest_enemy(sight_range)
+	if enemy == null and _soft_left > 0.0:
+		enemy = _valid_soft_target()
 
 	if forced_target != null:
 		_engage(forced_target, delta, true)
