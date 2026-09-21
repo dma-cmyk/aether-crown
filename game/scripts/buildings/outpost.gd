@@ -114,7 +114,7 @@ func _advance(side: int, dt: float) -> void:
 		challenger = -1
 		progress_sec = 0.0
 		_refresh_visuals()
-		ownership_changed.emit(owner)
+		ownership_changed.emit(owner_side)
 
 
 func owner_color() -> Color:

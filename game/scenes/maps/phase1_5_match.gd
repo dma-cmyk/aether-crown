@@ -33,6 +33,9 @@ var player_hq: RTSBuilding
 var enemy_hq: RTSBuilding
 var kills_by_player: int = 0
 var kills_by_enemy: int = 0
+## Test hook: automated tests disable the re-engagement pulse for
+## deterministic outpost phases. Always true in real play.
+var pulse_enabled: bool = true
 
 var _elapsed: float = 0.0
 var _perf_left: float = 5.0
@@ -94,7 +97,8 @@ func _process(delta: float) -> void:
 	_pulse_left -= delta
 	if _pulse_left <= 0.0:
 		_pulse_left = 4.0
-		_battle_pulse()
+		if pulse_enabled:
+			_battle_pulse()
 
 
 # ------------------------------------------------------------- battle pulse
