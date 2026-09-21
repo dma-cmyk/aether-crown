@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="AbilityDefinition" load_steps=2 format=3 uid="uid://boverdriveability1"]
+
+[ext_resource type="Script" path="res://core/ability_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"overdrive"
+display_name = "Overdrive"
+cooldown_sec = 30.0
+aether_cost = 25

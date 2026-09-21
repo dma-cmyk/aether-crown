@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=2 format=3 uid="uid://bgearforgefactory1"]
+
+[ext_resource type="Script" path="res://core/building_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"gearforge_factory"
+display_name = "Gearforge Factory"
+description = "Pipeline test building."
+faction_id = &"gearforge"
+cost_metal = 200
+build_time_sec = 20.0
+max_hp = 800.0
+footprint = Vector2(4, 4)
+blocks_navigation = true
+poly_budget = "mid"

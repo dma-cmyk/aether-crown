@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="FactionDefinition" load_steps=2 format=3 uid="uid://bgearforgefaction1"]
+
+[ext_resource type="Script" path="res://core/faction_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"gearforge"
+display_name = "Gearforge"
+description = "Steam-machine faction (placeholder)."
+primary_color = Color(0.91, 0.7, 0.29, 1)
+secondary_color = Color(0.16, 0.18, 0.24, 1)

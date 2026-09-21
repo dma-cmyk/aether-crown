@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="TechnologyDefinition" load_steps=2 format=3 uid="uid://bboilerstech00001"]
+
+[ext_resource type="Script" path="res://core/technology_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"improved_boilers"
+display_name = "Improved Boilers"
+cost_metal = 150
+cost_aether = 50
+research_time_sec = 30.0

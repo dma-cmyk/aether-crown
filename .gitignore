@@ -1,0 +1,54 @@
+# Godot
+.game/
+game/.godot/
+game/*.translation
+export_presets.cfg.bak
+
+# Godot generated / cache (keep .glb.import files, ignore editor cache)
+**/.godot/
+**/*.tmp
+**/*.log
+
+# Blender
+*.blend1
+*.blend2
+*.blend3
+*.blend4
+*.blend5
+*.blend6
+*.blend7
+*.blend8
+*.blend9
+blender/exports/*.glb
+blender/exports/*.gltf
+blender/exports/*.bin
+
+# Build / export output (root only; blender/exports/ handled above)
+build/
+dist/
+/exports/
+*.pck
+*.zip
+*.exe
+
+# OS
+.DS_Store
+Thumbs.db
+*~
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Test / temp
+/tmp/
+*.bak
