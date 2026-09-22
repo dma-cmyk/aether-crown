@@ -350,10 +350,13 @@ func _spawn_line(defs: Array, player_flag: bool, anchor: Vector3) -> void:
 
 
 func _spawn_titan() -> void:
+	# Phase 1.8: patrol in open ground east/south of the civic hall so the
+	# Titan silhouette reads against infantry/city instead of fusing with
+	# the Annex. Points avoid hall/boiler obstacle rects (no nav change).
 	titan = VisualTitan.new()
-	titan.setup(true, PLAYER_BASE + Vector3(10, 0, -2), PLAYER_BASE + Vector3(12, 0, 6))
+	titan.setup(true, Vector3(0, 0, -4), Vector3(4, 0, 2))
 	units_root.add_child(titan)
-	titan.position = map_nav.clamp_inside(PLAYER_BASE + Vector3(10, 0, -2))
+	titan.position = map_nav.clamp_inside(Vector3(0, 0, -4))
 	titan.died.connect(_on_titan_died)
 	titan.damaged.connect(_on_titan_damaged)
 
