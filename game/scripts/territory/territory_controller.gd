@@ -26,6 +26,12 @@ func setup(defs: Array) -> void:
 		i += 1
 
 
+## Manual recalc for city-less setups (showcases, tests). Map scenes with
+## bound cities recalc automatically on ownership change.
+func refresh() -> void:
+	_recalc()
+
+
 ## Links a city so its ownership drives the matching region.
 func bind_city(city: RTSCity) -> void:
 	if city == null:

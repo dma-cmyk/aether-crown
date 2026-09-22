@@ -53,7 +53,12 @@ func _process(delta: float) -> void:
 	_pan_velocity = _pan_velocity.lerp(wish, clampf(delta * smoothing, 0.0, 1.0))
 	position += _pan_velocity * delta
 	position.x = clampf(position.x, -map_limit, map_limit)
-	position.z = clampf(position.z, -map_limit, map_limit)
+	# Zoom-compensated south bound (Phase 2.5A): the camera looks north, so
+	# the screen center sits ~distance meters north of the rig. At far
+	# zoom-out the rig must travel further south for the map bottom to stay
+	# reachable. North/x bounds unchanged; no velocity behavior change.
+	var south_extra := maxf(0.0, distance - 28.0) * 0.75
+	position.z = clampf(position.z, -map_limit, map_limit + south_extra)
 	position.y = 0.0
 
 	if Input.is_action_just_pressed("camera_zoom_in"):
