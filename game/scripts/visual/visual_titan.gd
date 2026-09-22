@@ -10,6 +10,7 @@ signal died(titan: VisualTitan)
 signal damaged(titan: VisualTitan)
 
 const TitanSceneGLB: PackedScene = preload("res://assets/models/gearforge_titan.glb")
+const TitanSceneLOD1: PackedScene = preload("res://assets/models/gearforge_titan_lod1.glb")
 
 const MAX_HP: float = 1500.0
 const CANNON_INTERVAL: float = 3.2
@@ -17,6 +18,11 @@ const CANNON_RANGE: float = 30.0
 const CANNON_DAMAGE: float = 90.0
 const SPLASH: float = 4.0
 const PATROL_SPEED: float = 1.6
+## Phase 2.5B.1 LOD switch: LOD0 below LOD_NEAR_MAX, LOD1 above
+## LOD_FAR_MIN. 2m hysteresis avoids pop flicker at the boundary.
+const LOD_NEAR_MAX: float = 32.0
+const LOD_FAR_MIN: float = 34.0
+const LOD_CHECK_INTERVAL: float = 0.25
 
 var is_player: bool = true
 var hp: float = MAX_HP
@@ -33,6 +39,15 @@ var _muzzle: Node3D = null
 var _ring: MeshInstance3D = null
 var _hp_bg: MeshInstance3D = null
 var _hp_fg: MeshInstance3D = null
+## Active LOD level (0 = production close/mid, 1 = far/strategic).
+var lod_level: int = 0
+## When true (tests/showcase/benchmarks), set_lod() holds and the distance
+## auto-switch is skipped. Gameplay default is false (auto).
+var lod_locked: bool = false
+var _visual_lod0: Node3D = null
+var _visual_lod1: Node3D = null
+var _lod_check_left: float = 0.0
+var _camera: Camera3D = null
 
 
 func setup(player_flag: bool, from_pos: Vector3, to_pos: Vector3) -> void:
@@ -48,13 +63,15 @@ func _ready() -> void:
 	add_to_group("rts_buildings")
 	collision_layer = 2
 	collision_mask = 3
-	var visual := TitanSceneGLB.instantiate() as Node3D
-	add_child(visual)
-	for c in _find_meshes(visual):
-		(c as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	_muzzle = visual.find_child("muzzle", true, true) as Node3D
-	if _muzzle == null:
-		_muzzle = self
+	_visual_lod0 = TitanSceneGLB.instantiate() as Node3D
+	add_child(_visual_lod0)
+	_visual_lod1 = TitanSceneLOD1.instantiate() as Node3D
+	_visual_lod1.visible = false
+	add_child(_visual_lod1)
+	for visual in [_visual_lod0, _visual_lod1]:
+		for c in _find_meshes(visual):
+			(c as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	_resolve_muzzle()
 	_fx_root = get_parent() as Node3D
 	_build_markers()
 	_refresh_visuals()
@@ -117,6 +134,73 @@ func _physics_process(delta: float) -> void:
 	if _cooldown <= 0.0:
 		_cooldown = CANNON_INTERVAL
 		_try_fire()
+
+
+## Distance LOD, throttled: camera lookup is cached, distance check runs
+## 4x/sec. Hysteresis band [LOD_NEAR_MAX, LOD_FAR_MIN] prevents popping
+## when the camera rests near the threshold.
+func _process(delta: float) -> void:
+	_lod_check_left -= delta
+	if _lod_check_left > 0.0:
+		return
+	_lod_check_left = LOD_CHECK_INTERVAL
+	_update_lod()
+
+
+func _active_visual() -> Node3D:
+	return _visual_lod1 if lod_level == 1 else _visual_lod0
+
+
+func camera_distance() -> float:
+	if _camera == null or not is_instance_valid(_camera):
+		var rig := get_tree().get_first_node_in_group("rts_camera") as Node3D
+		if rig != null:
+			_camera = rig.get_node_or_null("Camera3D") as Camera3D
+	if _camera == null:
+		return 0.0
+	return _camera.global_position.distance_to(global_position)
+
+
+func set_lod(level: int) -> void:
+	lod_level = 1 if level == 1 else 0
+	lod_locked = true
+	_apply_lod()
+
+
+func unlock_lod() -> void:
+	lod_locked = false
+	_lod_check_left = 0.0
+
+
+func _update_lod() -> void:
+	if lod_locked:
+		return
+	var d := camera_distance()
+	if _camera == null:
+		return
+	if lod_level == 0 and d >= LOD_FAR_MIN:
+		lod_level = 1
+		_apply_lod()
+	elif lod_level == 1 and d <= LOD_NEAR_MAX:
+		lod_level = 0
+		_apply_lod()
+
+
+func _apply_lod() -> void:
+	if _visual_lod0 != null:
+		_visual_lod0.visible = lod_level == 0
+	if _visual_lod1 != null:
+		_visual_lod1.visible = lod_level == 1
+	_resolve_muzzle()
+
+
+func _resolve_muzzle() -> void:
+	_muzzle = null
+	var visual := _active_visual()
+	if visual != null:
+		_muzzle = visual.find_child("muzzle", true, true) as Node3D
+	if _muzzle == null:
+		_muzzle = self
 
 
 func _patrol(delta: float) -> void:
@@ -235,7 +319,14 @@ func _build_markers() -> void:
 	add_child(_hp_fg)
 	var col := CollisionShape3D.new()
 	var shape := CylinderShape3D.new()
-	shape.radius = 2.2
+	# Phase 2.5B.1 production footprint: radius 3.0 keeps infantry
+	# (body r0.35-0.5) outside the sole outer edge (+/-2.39m) while staying
+	# deliberately smaller than the visual half-width (3.88m) so corridors
+	# are not over-blocked. Height 9.0 covers hull+sensor head; the thin
+	# twin stacks above are excluded on purpose. Navmesh is untouched
+	# (titan patrols, so no static obstacle); chasing units stop at
+	# attack_range 13 which is well outside this radius.
+	shape.radius = 3.0
 	shape.height = 9.0
 	col.shape = shape
 	col.position = Vector3(0, 4.5, 0)

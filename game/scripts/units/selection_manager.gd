@@ -148,7 +148,10 @@ func _click_select(pos: Vector2, additive: bool) -> void:
 		clear_selection()
 
 
-## Owned player unit or player building (HQ). Enemy/outpost are not selectable.
+## Owned player unit, player building (HQ), or player Titan. Enemy/outpost
+## are not selectable. Phase 2.5B.1: VisualTitan accepts click-select so the
+## production footprint can be inspected/ordered without affecting box-select
+## (titans stay out of the rts_units drag pass) or other maps (no titans).
 func _is_owned_selectable(n: Node) -> bool:
 	if n == null or not is_instance_valid(n):
 		return false
@@ -158,7 +161,7 @@ func _is_owned_selectable(n: Node) -> bool:
 		return false
 	if not ("is_player" in n) or not bool(n.get("is_player")):
 		return false
-	return (n is RTSUnit) or (n is RTSBuilding)
+	return (n is RTSUnit) or (n is RTSBuilding) or (n is VisualTitan)
 
 
 func _box_select(a: Vector2, b: Vector2, additive: bool) -> void:
@@ -228,8 +231,10 @@ func _is_foe_damageable(n: Node) -> bool:
 	return not bool(n.get("is_player"))
 
 
-## Picks the topmost damageable under the cursor: player/enemy unit or
-## building. Phase 1 maps only spawn units, so Phase 1 picks are unchanged.
+## Picks the topmost damageable under the cursor: player/enemy unit,
+## building, or Titan. Phase 1 maps only spawn units, so Phase 1 picks are
+## unchanged. Titan colliders resolve to the VisualTitan itself, enabling
+## click-select (own) and force-attack orders (foe, via _is_foe_damageable).
 func _pick_target(pos: Vector2) -> Node3D:
 	var params := PhysicsRayQueryParameters3D.create(_ray_origin(pos), _ray_origin(pos) + _ray_dir(pos) * 300.0)
 	params.collision_mask = UNIT_MASK
@@ -237,7 +242,7 @@ func _pick_target(pos: Vector2) -> Node3D:
 	if hit.is_empty():
 		return null
 	var node := hit.get("collider") as Node
-	while node != null and not (node is RTSUnit) and not (node is RTSBuilding):
+	while node != null and not (node is RTSUnit) and not (node is RTSBuilding) and not (node is VisualTitan):
 		node = node.get_parent()
 	return node as Node3D
 
