@@ -14,7 +14,7 @@ const HeavyDef: UnitDefinition = preload("res://resources/units/gf_heavy_guard.t
 const HallGLB: PackedScene = preload("res://assets/models/gearforge_civic_hall.glb")
 const BoilerGLB: PackedScene = preload("res://assets/models/gearforge_boiler_house.glb")
 
-const PLAYER_BASE := Vector3(-16, 0, -12)
+const PLAYER_BASE := Vector3(-26, 0, -16)
 const ENEMY_BASE := Vector3(18, 0, 14)
 const CITY_CENTER := Vector3(-10, 0, -8)
 const POP_MAX: int = 40
@@ -154,7 +154,7 @@ func _build_city() -> void:
 	var b2_stack := _vent_world(b2_pos, 0.9, Vector2(2.2, 0.0), 9.3)
 	VisualFX.smoke_vent(fx_root, b2_stack)
 
-	_build_pavement(Vector3(-12, 0, -10), Vector2(20, 16))
+	_build_pavement(Vector3(-10, 0, -8), Vector2(30, 24))
 	_build_props()
 	_build_lamps()
 
@@ -196,7 +196,7 @@ func _build_pavement(center: Vector3, size: Vector2) -> void:
 
 func _build_roads() -> void:
 	var mat := _mat(Color(0.36, 0.31, 0.24, 1.0), 1.0)
-	var points: Array[Vector3] = [Vector3(-12, 0, -10), Vector3(2, 0, 2), ENEMY_BASE]
+	var points: Array[Vector3] = [Vector3(-8, 0, -4), Vector3(2, 0, 2), ENEMY_BASE]
 	for s in range(points.size() - 1):
 		var a: Vector3 = points[s]
 		var b: Vector3 = points[s + 1]
@@ -225,8 +225,8 @@ func _build_props() -> void:
 	var barrel := _mat(Color(0.30, 0.32, 0.35, 1.0), 0.6)
 	var brass := _mat(Color(0.60, 0.44, 0.20, 1.0), 0.45)
 	var spots: Array = [
-		Vector3(-5, 0, -6), Vector3(-4, 0, -5), Vector3(-5.5, 0, -4.5),
-		Vector3(-18, 0, -6), Vector3(4, 0, -10), Vector3(-24, 0, 4),
+		Vector3(-5, 0, -6), Vector3(-4, 0, -5), Vector3(-4.5, 0, -3.5),
+		Vector3(-19.5, 0, -3.5), Vector3(4, 0, -10), Vector3(-24, 0, 4),
 	]
 	for i in range(spots.size()):
 		var sp: Vector3 = spots[i]
@@ -254,7 +254,7 @@ func _build_lamps() -> void:
 	var pole_mat := _mat(Color(0.18, 0.18, 0.20, 1.0), 0.7)
 	var head_mat := _mat(Color(1.0, 0.82, 0.45, 1.0), 0.35, 2.0)
 	var spots: Array = [
-		Vector3(-6, 0, -12), Vector3(-16, 0, -4), Vector3(-2, 0, -8),
+		Vector3(-4, 0, -3), Vector3(-16, 0, -4), Vector3(-2, 0, -8),
 		Vector3(-22, 0, -4), Vector3(2, 0, -18),
 	]
 	for sp in spots:

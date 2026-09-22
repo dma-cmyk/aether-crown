@@ -94,15 +94,16 @@ def main():
                           emission_color=(1.0, 0.75, 0.35), emission_strength=1.6)
 
     # Base pad (ground slab, origin = ground center)
-    box(ASSET + "_pad", (13.0, 0.3, 11.0), (0, 0, 0.15), stone)
-    box(ASSET + "_pad_trim", (13.2, 0.12, 11.2), (0, 0, 0.32), iron)
+    # Blender Z-up: footprint X/Y, thickness Z. Godot converts to Y-up flat.
+    box(ASSET + "_pad", (13.0, 11.0, 0.3), (0, 0, 0.15), stone)
+    box(ASSET + "_pad_trim", (13.2, 11.2, 0.12), (0, 0, 0.32), iron)
 
-    # Main hall body
-    box(ASSET + "_hall", (8.0, 3.6, 6.4), (-1.0, 0, 2.1), brass)
-    # Side annex (boiler wing)
-    box(ASSET + "_annex", (3.4, 2.6, 4.6), (3.6, 0, 1.55), copper)
-    # Roof: rotated cube as simple gable (cheap, RTS-readable)
-    roof = box(ASSET + "_roof", (8.6, 0.35, 7.0), (-1.0, 0, 4.05), iron)
+    # Main hall body (width X, depth Y, height Z; sits on pad top 0.3)
+    box(ASSET + "_hall", (8.0, 6.4, 3.6), (-1.0, 0, 2.1), brass)
+    # Side annex (boiler wing, attached east of hall)
+    box(ASSET + "_annex", (3.4, 4.6, 2.6), (3.6, 0, 1.55), copper)
+    # Roof: flat slab with overhang (sits on hall top 3.9)
+    roof = box(ASSET + "_roof", (8.6, 7.0, 0.35), (-1.0, 0, 4.05), iron)
     roof.rotation_euler = (0, 0, 0)
     ridge = box(ASSET + "_ridge", (8.8, 1.1, 1.2), (-1.0, 0, 4.6), iron)
 
@@ -123,8 +124,9 @@ def main():
     cylinder(ASSET + "_stack", radius=0.45, depth=3.4, loc=(3.6, 0, 4.6), mat=iron, vertices=12)
     cylinder(ASSET + "_stack_lip", radius=0.55, depth=0.3, loc=(3.6, 0, 6.4), mat=glow_blue, vertices=12)
 
-    # Horizontal boiler tank on annex side
-    tank = cylinder(ASSET + "_tank", radius=0.9, depth=2.8, loc=(3.6, 2.6, 1.4), mat=copper, vertices=14)
+    # Horizontal boiler tank on annex north wall (axis Y, protrudes north,
+    # bottom sits on pad trim top 0.38: 1.28-0.9=0.38)
+    tank = cylinder(ASSET + "_tank", radius=0.9, depth=2.8, loc=(3.6, 2.6, 1.28), mat=copper, vertices=14)
     tank.rotation_euler = (math.radians(90), 0, 0)
     bpy.context.view_layer.objects.active = tank
     bpy.ops.object.transform_apply(rotation=True)
@@ -133,11 +135,12 @@ def main():
     for wx in (-3.2, -1.6, 0.0, 1.4):
         box(ASSET + "_window_%d" % int((wx + 10) * 10), (0.9, 0.1, 0.7), (wx, -3.22, 2.2), glass_warm)
 
-    # Faction banner poles + glow banners
+    # Faction banner poles (grounded on pad trim top 0.38, height 5.0)
+    # + glow banners (hang from pole tops, attached, south of hall)
     for px in (-6.0, 6.0):
         cylinder(ASSET + "_pole_%d" % int(px * 10), radius=0.08, depth=5.0,
-                 loc=(px, 0, -4.2), mat=iron, vertices=8)
-        box(ASSET + "_banner_%d" % int(px * 10), (1.0, 0.08, 1.5), (px, 0, 6.2), glow_blue)
+                 loc=(px, -4.2, 2.88), mat=iron, vertices=8)
+        box(ASSET + "_banner_%d" % int(px * 10), (1.0, 0.08, 1.5), (px, -4.2, 4.6), glow_blue)
 
     # Pipes along hall side
     pipe = cylinder(ASSET + "_pipe", radius=0.14, depth=7.0, loc=(-1.0, 3.35, 1.0), mat=copper, vertices=8)

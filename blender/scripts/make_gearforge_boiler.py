@@ -87,10 +87,11 @@ def main():
     furnace = make_pbr(ASSET + "_furnace", (1.0, 0.55, 0.20), 0.0, 0.4,
                        emission_color=(1.0, 0.5, 0.15), emission_strength=2.2)
 
-    box(ASSET + "_pad", (9.0, 0.3, 7.0), (0, 0, 0.15), brick)
-    box(ASSET + "_hall", (6.4, 3.0, 5.0), (-0.6, 0, 1.8), brick)
-    box(ASSET + "_roof", (6.8, 0.3, 5.4), (-0.6, 0, 3.45), iron)
-    box(ASSET + "_roof_trim", (7.0, 0.18, 5.6), (-0.6, 0, 3.2), brass)
+    # Blender Z-up: footprint X/Y, height Z. Godot converts to Y-up.
+    box(ASSET + "_pad", (9.0, 7.0, 0.3), (0, 0, 0.15), brick)
+    box(ASSET + "_hall", (6.4, 5.0, 3.0), (-0.6, 0, 1.8), brick)
+    box(ASSET + "_roof", (6.8, 5.4, 0.3), (-0.6, 0, 3.45), iron)
+    box(ASSET + "_roof_trim", (7.0, 5.6, 0.18), (-0.6, 0, 3.2), brass)
 
     # Tall chimney (main steam/smoke anchor)
     cylinder(ASSET + "_chimney", radius=0.55, depth=6.0, loc=(2.2, 0, 6.0), mat=iron, vertices=12)
@@ -98,11 +99,12 @@ def main():
     cylinder(ASSET + "_chimney_band_b", radius=0.65, depth=0.25, loc=(2.2, 0, 7.0), mat=brass, vertices=12)
     cylinder(ASSET + "_chimney_lip", radius=0.62, depth=0.3, loc=(2.2, 0, 9.1), mat=furnace, vertices=12)
 
-    # Boiler tanks
-    for i, tx in enumerate((-1.8, 0.2)):
+    # Boiler tanks (east side, axis X, penetrate east wall, bottoms sit
+    # on pad top 0.3: 1.15-0.85=0.3; two tanks separated in Y, no overlap)
+    for i, ty in enumerate((-1.0, 1.0)):
         tank = cylinder(ASSET + "_tank_%d" % i, radius=0.85, depth=2.4,
-                        loc=(tx, 1.8, 1.2), mat=copper, vertices=12)
-        tank.rotation_euler = (math.radians(90), 0, 0)
+                        loc=(3.0, ty, 1.15), mat=copper, vertices=12)
+        tank.rotation_euler = (0, math.radians(90), 0)
         bpy.context.view_layer.objects.active = tank
         bpy.ops.object.transform_apply(rotation=True)
 
@@ -110,18 +112,20 @@ def main():
     box(ASSET + "_furnace_mouth", (1.4, 0.15, 1.0), (-0.6, -2.55, 0.9), furnace)
     box(ASSET + "_furnace_frame", (1.8, 0.12, 1.4), (-0.6, -2.52, 0.9), iron)
 
-    # Pipes: vertical + horizontal run
-    cylinder(ASSET + "_pipe_v", radius=0.13, depth=3.2, loc=(-3.2, 1.0, 1.8), mat=copper, vertices=8)
-    pipe_h = cylinder(ASSET + "_pipe_h", radius=0.13, depth=5.5, loc=(-1.0, 1.0, 3.3), mat=copper, vertices=8)
+    # Pipes: vertical west-wall run (grounded, top meets roof pipe)
+    # + horizontal roof run (sits on roof top 3.6, connects west pipe to chimney)
+    cylinder(ASSET + "_pipe_v", radius=0.13, depth=3.6, loc=(-3.9, 0, 2.0), mat=copper, vertices=8)
+    pipe_h = cylinder(ASSET + "_pipe_h", radius=0.13, depth=6.5, loc=(-0.6, 0, 3.73), mat=copper, vertices=8)
     pipe_h.rotation_euler = (0, math.radians(90), 0)
     bpy.context.view_layer.objects.active = pipe_h
     bpy.ops.object.transform_apply(rotation=True)
 
-    # Faction lamp posts (blue glow markers)
+    # Faction lamp posts (grounded on pad top 0.3, south of hall;
+    # heads sit on pole tops, attached, blue glow markers)
     for px in (-3.8, 2.6):
         cylinder(ASSET + "_lamp_pole_%d" % int(px * 10), radius=0.07, depth=2.6,
-                 loc=(px, 0, -3.0), mat=iron, vertices=8)
-        box(ASSET + "_lamp_head_%d" % int(px * 10), (0.35, 0.35, 0.35), (px, 0, 2.9), glow)
+                 loc=(px, -3.0, 1.6), mat=iron, vertices=8)
+        box(ASSET + "_lamp_head_%d" % int(px * 10), (0.35, 0.35, 0.35), (px, -3.0, 3.075), glow)
 
     bpy.ops.object.select_all(action="SELECT")
     os.makedirs(os.path.dirname(SOURCE_BLEND), exist_ok=True)
