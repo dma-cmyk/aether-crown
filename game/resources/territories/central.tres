@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="TerritoryDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/territory_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"central"
+display_name = "Central Territory"
+description = "High-Aether strategic region. Follows Central City ownership."
+linked_city_id = &"central_city"
+fixed_owner = -1
+aether_income_bonus = 0.8
+center = Vector3(0, 0, -1)
+size = Vector2(24, 26)
+neighbor_ids = Array[String]([&"west", &"east"])

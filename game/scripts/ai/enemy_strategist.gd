@@ -27,6 +27,7 @@ var player_hq: RTSBuilding
 var outpost: RTSOutpost
 var cities: Array = [] # Phase 2A: RTSCity list. Empty on the Phase 1.5 map.
 var target_city: RTSCity = null # Phase 2A: city chosen by _decide_city.
+var city_aether: Dictionary = {} # Phase 2B: city_id (String) -> linked territory aether value. Empty on older maps.
 var infantry_def: UnitDefinition
 var marksman_def: UnitDefinition
 var heavy_def: UnitDefinition
@@ -160,6 +161,9 @@ func _pick_city_target() -> RTSCity:
 		score -= d.length() * 1.5
 		if city.contested:
 			score += 15.0 # join the ongoing fight
+		# Phase 2B: lightly value linked territory aether (Central weighs in).
+		# Empty dict on older maps, so Phase 1.5/2A behavior is unchanged.
+		score += float(city_aether.get(str(city.city_id), 0.0)) * 20.0
 		if score > best_score:
 			best_score = score
 			best = city
