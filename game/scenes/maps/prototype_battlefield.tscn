@@ -28,8 +28,15 @@ directional_shadow_max_distance = 120.0
 [node name="CoolFill" type="OmniLight3D" parent="."]
 position = Vector3(-20, 16, 12)
 light_color = Color(0.28, 0.58, 1, 1)
-light_energy = 7.0
+light_energy = 5.5
 omni_range = 40.0
+shadow_enabled = false
+
+[node name="WarmFrontFill" type="OmniLight3D" parent="."]
+position = Vector3(17, 12, 2)
+light_color = Color(1, 0.31, 0.16, 1)
+light_energy = 3.5
+omni_range = 30.0
 shadow_enabled = false
 
 [node name="CameraRig" type="Node3D" parent="."]

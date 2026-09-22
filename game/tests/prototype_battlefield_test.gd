@@ -29,6 +29,9 @@ func _process(_delta: float) -> bool:
 	var units := proto.get_node_or_null("UnitsRoot")
 	if blue == null or blue.get_child_count() < 5:
 		return _fail("blue base incomplete")
+	for role_prop in ["SupportMast", "FactoryCargo00", "AetherPylon"]:
+		if blue.get_node_or_null(role_prop) == null:
+			return _fail("blue role prop missing: %s" % role_prop)
 	if red == null or red.get_child_count() < 4:
 		return _fail("red base incomplete")
 	if mid == null or mid.get_child_count() < 6:
@@ -47,6 +50,10 @@ func _process(_delta: float) -> bool:
 	for c in units.get_children():
 		if (c.name as String).begins_with("Airship"):
 			ships += 1
+			if (c as Node3D).scale.x > 0.5:
+				return _fail("prototype airship dominates frame: %s" % c.name)
+			if bool(c.get("bombard_enabled")):
+				return _fail("showcase airship bombardment must stay disabled")
 	if ships != 2:
 		return _fail("want 2 airships, got %d" % ships)
 	print("PROTOTYPE_TEST OK blue=%d red=%d walkers=5 airships=2 units=%d" % [

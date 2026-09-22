@@ -21,6 +21,12 @@ const BOMB_SPLASH: float = 3.0
 var is_player: bool = true
 var bombard_enabled: bool = true
 var center: Vector3 = Vector3.ZERO
+## Per-instance visual controls. Defaults preserve existing gameplay scenes;
+## showcase/prototype scenes may shrink and berth the production hull without
+## changing the shared airship asset or combat balance.
+var cruise_height: float = CRUISE_HEIGHT
+var cruise_radius: float = CRUISE_RADIUS
+var cruise_speed: float = CRUISE_SPEED
 
 var _angle: float = 0.6
 var _bomb_left: float = 4.0
@@ -47,9 +53,11 @@ func _find_meshes(n: Node) -> Array:
 
 
 func _process(delta: float) -> void:
-	_angle += CRUISE_SPEED * delta
+	_angle += cruise_speed * delta
 	_bob_t += delta
-	var target := Vector3(center.x + cos(_angle) * CRUISE_RADIUS, CRUISE_HEIGHT + sin(_bob_t * 0.7) * 0.6, center.z + sin(_angle) * CRUISE_RADIUS)
+	var target := Vector3(center.x + cos(_angle) * cruise_radius,
+		cruise_height + sin(_bob_t * 0.7) * 0.6,
+		center.z + sin(_angle) * cruise_radius)
 	global_position = global_position.lerp(target, minf(1.0, delta * 1.5))
 	var dir := Vector3(-sin(_angle), 0, cos(_angle))
 	if dir.length() > 0.01:
