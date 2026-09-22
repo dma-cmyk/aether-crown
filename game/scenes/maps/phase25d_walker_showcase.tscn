@@ -1,0 +1,72 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/maps/phase25d_walker_showcase.gd" id="1"]
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 1
+background_color = Color(0.105, 0.125, 0.165, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.46, 0.55, 0.68, 1)
+ambient_light_energy = 0.66
+reflected_light_source = 2
+tonemap_mode = 2
+
+[node name="Phase25DWalkerShowcase" type="Node3D"]
+script = ExtResource("1")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_1")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-50, -36, 0)
+light_color = Color(1, 0.84, 0.68, 1)
+light_energy = 2.0
+shadow_enabled = true
+directional_shadow_max_distance = 80.0
+
+[node name="CoolFill" type="OmniLight3D" parent="."]
+position = Vector3(-11, 11, 9)
+light_color = Color(0.32, 0.58, 1, 1)
+light_energy = 2.4
+omni_range = 22.0
+shadow_enabled = false
+
+[node name="ReviewCamera" type="Camera3D" parent="."]
+current = true
+fov = 44.0
+far = 400.0
+position = Vector3(0, 6, 14)
+
+[node name="GroundRoot" type="Node3D" parent="."]
+
+[node name="WalkerRoot" type="Node3D" parent="."]
+
+[node name="SquadRoot" type="Node3D" parent="."]
+
+[node name="PrototypeRoot" type="Node3D" parent="."]
+
+[node name="TitanRoot" type="Node3D" parent="."]
+
+[node name="BuildingRoot" type="Node3D" parent="."]
+
+[node name="UnitsRoot" type="Node3D" parent="."]
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Title" type="Label" parent="HUD"]
+offset_left = 24.0
+offset_top = 20.0
+offset_right = 860.0
+offset_bottom = 52.0
+theme_override_colors/font_color = Color(0.65, 0.86, 1, 1)
+theme_override_font_sizes/font_size = 20
+text = "GEARFORGE // IRONSTRIDE LINE WALKER // PHASE 2.5D"
+
+[node name="Readout" type="Label" parent="HUD"]
+offset_left = 26.0
+offset_top = 54.0
+offset_right = 860.0
+offset_bottom = 106.0
+theme_override_colors/font_color = Color(0.82, 0.84, 0.88, 1)
+theme_override_font_sizes/font_size = 15
+text = "4.54m // FRONTLINE SUPPORT WALKER // FPS --"
