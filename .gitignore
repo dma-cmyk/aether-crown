@@ -52,3 +52,6 @@ __pycache__/
 # Test / temp
 /tmp/
 *.bak
+
+# Local-only agent instructions (kept locally, not tracked in public repo)
+/AGENTS.md
