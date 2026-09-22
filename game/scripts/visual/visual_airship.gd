@@ -8,7 +8,10 @@ extends Node3D
 
 const AirshipGLB: PackedScene = preload("res://assets/models/gearforge_airship.glb")
 
-const CRUISE_HEIGHT: float = 19.0
+## Phase 2.5C: the production hull is 35.45 m long and 11.38 m tall, so the
+## Phase 1.75 altitude put it inside the skyline. Altitude is visual only -
+## _nearest_foe measures horizontal distance, so bombardment is unchanged.
+const CRUISE_HEIGHT: float = 26.0
 const CRUISE_RADIUS: float = 22.0
 const CRUISE_SPEED: float = 0.09
 const BOMB_INTERVAL: float = 6.0

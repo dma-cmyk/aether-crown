@@ -103,7 +103,7 @@ tertiary detail の追加は最後に回す。
   3胴構造。前方に装甲 ram prow、上面に露出した reactor spine、
   下面に command gondola と belly siege mortar、後部に H-tail と ducted engine。
 - role: 制空しながら地上を叩く空中砲台。Titan が押し込む正面を上から割る。
-- hull proportions: 全長 34m / 全幅 13.8m / 全高 11.2m。cell 直径 6m。
+- hull proportions: 全長 35.45m / 全幅 14.21m / 全高 11.38m。cell 直径 5.1m。
 - machinery: keel hull 側面に boiler bank と sponson、cell 下腹に injector 列、
   後部に engine nacelle。機械が装甲の隙間から見える armor-over-machine。
 - propulsion: 巡航は steam ducted propeller 2基 (boiler 駆動)、
@@ -233,11 +233,13 @@ ring frame は Secondary だが、突出量を確保することで strategic �
 | Infantry | 高さ 1.8m |
 | Building | 4m グリッド / 高さ 約10m |
 | Titan Crownpiercer | 11.39m H × 7.76m W × 9.65m D |
-| **Airship Crownhammer** | **34.0m L × 13.8m W × 11.2m H** |
+| **Airship Crownhammer** | **35.45m L × 14.21m W × 11.38m H** (実測) |
 
 Airship は Titan と同程度の「高さ」を持ちながら、全長で約3倍の体積感を持つ。
 1920×1080 の mid zoom で画面幅の約40%、strategic zoom で約15%に収まり、
-画面を覆わない。cruise 高度は既存 `VisualAirship.CRUISE_HEIGHT` 相当を維持する。
+画面を覆わない。cruise 高度は `VisualAirship.CRUISE_HEIGHT` を 19m から 26m に引き上げた
+(船体下端が地上約20.9m になり、建物と Titan の上を通る)。`_nearest_foe` は水平距離のみを
+見ているため、この変更は視覚のみで bombardment の挙動は変わらない。
 
 ## Material Language
 
