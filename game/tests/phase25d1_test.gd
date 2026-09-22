@@ -120,9 +120,17 @@ func _check_static() -> bool:
 	if bool(sel.call("_is_owned_selectable", _red)):
 		sel.queue_free()
 		return _fail("enemy walker must not be selectable")
-	if _red.has_method("take_damage"):
+	# Player walker selectable, enemy not. Phase 2.6: walkers expose
+	# take_damage + order API (RTSUnit parity) for combat.
+	if _red.has_method("take_damage") == false:
 		sel.queue_free()
-		return _fail("walker must not expose take_damage yet")
+		return _fail("walker must expose take_damage (Phase 2.6)")
+	if not _red.has_method("order_move") or not _red.has_method("order_attack"):
+		sel.queue_free()
+		return _fail("walker must expose order API (Phase 2.6)")
+	if _red.max_hp < 100.0:
+		sel.queue_free()
+		return _fail("walker HP must come from gf_walker.tres")
 	sel.queue_free()
 	print("PHASE25D1_STATIC OK groups=4 anchors=8 pivots=4 collision=2 height=%.2f" % bounds.size.y)
 	return false

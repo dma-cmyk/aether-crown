@@ -149,8 +149,8 @@ func _click_select(pos: Vector2, additive: bool) -> void:
 
 
 ## Owned player unit, player building (HQ), player Titan, player airship,
-## or player walker. Enemy/outpost are not selectable. Titans, airships and
-## walkers accept click-select only; box-select stays rts_units.
+## or player walker. Enemy/outpost are not selectable. Titans and airships
+## accept click-select only; box-select covers rts_units + visual_walkers.
 func _is_owned_selectable(n: Node) -> bool:
 	if n == null or not is_instance_valid(n):
 		return false
@@ -167,17 +167,22 @@ func _box_select(a: Vector2, b: Vector2, additive: bool) -> void:
 	var rect := Rect2(a, b).abs()
 	if not additive:
 		clear_selection()
-	var units := get_tree().get_nodes_in_group("rts_units")
-	for o in units:
-		var u := o as RTSUnit
-		if u == null or not u.is_alive() or not u.is_player:
+	# rts_units (infantry) + visual_walkers (Phase 2.6): both duck-typed
+	# with is_alive/is_player/set_selected. Titans/airships stay click-only.
+	var candidates: Array = get_tree().get_nodes_in_group("rts_units")
+	candidates.append_array(get_tree().get_nodes_in_group("visual_walkers"))
+	for o in candidates:
+		var u := o as Node3D
+		if u == null:
+			continue
+		if not bool(u.call("is_alive")) or not bool(u.get("is_player")):
 			continue
 		if _camera.is_position_behind(u.global_position + Vector3(0, 1, 0)):
 			continue
 		var sp: Vector2 = _camera.unproject_position(u.global_position + Vector3(0, 1, 0))
 		if rect.has_point(sp) and not selected.has(u):
 			selected.append(u)
-			u.set_selected(true)
+			u.call("set_selected", true)
 	selection_changed.emit()
 
 
@@ -234,7 +239,7 @@ func _is_foe_damageable(n: Node) -> bool:
 ## building, Titan, airship, or walker. Phase 1 maps only spawn units, so
 ## Phase 1 picks are unchanged. Titan/airship/walker colliders resolve to
 ## the visual root, enabling click-select (own) and force-attack orders
-## (foe Titans; airships and walkers expose no take_damage yet, so foe
+## (foe Titans and foe walkers expose take_damage; airships do not, so foe
 ## clicks there fall through to ground orders).
 func _pick_target(pos: Vector2) -> Node3D:
 	var params := PhysicsRayQueryParameters3D.create(_ray_origin(pos), _ray_origin(pos) + _ray_dir(pos) * 300.0)

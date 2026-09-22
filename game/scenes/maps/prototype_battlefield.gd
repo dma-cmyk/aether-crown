@@ -1,11 +1,15 @@
 extends Node3D
 ## Prototype battlefield: blue base (west) vs red placeholder base (east),
 ## midfield clash with walkers / titan / infantry, one airship per side.
-## Atmosphere verification only: no gameplay logic, no balance changes.
+## Phase 2.6: playable skirmish slice — SelectionManager/OrderManager in
+## scene, ground collision + flat navmesh, live infantry, and Ironstride
+## production (R key at the blue Factory; red factory auto-produces waves).
+## No economy/balance changes: production here is a sandbox flow check.
 ##
 ## Capture (windowed, Iris Xe):
 ##   godot --path game res://scenes/maps/prototype_battlefield.tscn -- --capture-proto
 ##   godot --path game res://scenes/maps/prototype_battlefield.tscn -- --capture-proto-polish
+##   godot --path game res://scenes/maps/prototype_battlefield.tscn -- --capture-26
 ## Benchmark:
 ##   ... -- --benchmark-proto [--res-720p]
 
@@ -17,9 +21,20 @@ const AetherGLB: PackedScene = preload("res://assets/models/gearforge_aether_wel
 const TitanGLB: PackedScene = preload("res://assets/models/gearforge_titan.glb")
 const InfantryScene: PackedScene = preload("res://scenes/units/infantry.tscn")
 const InfantryDef: UnitDefinition = preload("res://resources/units/gf_infantry.tres")
+const WalkerDef: UnitDefinition = preload("res://resources/units/gf_walker.tres")
 
 const SCREENSHOT_DIR := "res://../docs/screenshots/prototype"
 const POLISH_SCREENSHOT_DIR := "res://../docs/screenshots/prototype_polish"
+const PHASE26_SCREENSHOT_DIR := "res://../docs/screenshots/phase26"
+
+## Production tuning (sandbox): R key enqueues at the blue Factory.
+## Gate/rally sit on the south lane, clear of Factory/Barracks/Boiler
+## footprints (walkers steer straight-line; no wall clipping).
+const WALKER_SPAWN_BLUE := Vector3(-64, 0, 17.5)
+const WALKER_RALLY_BLUE := Vector3(-46, 0, 15)
+const WALKER_SPAWN_RED := Vector3(45, 0, 10)
+const RED_WAVE_INTERVAL: float = 28.0
+const RED_WAVE_CAP: int = 4
 
 var _fps_min := 9999
 var _fps_sum := 0
@@ -29,6 +44,13 @@ var _capture_active := false
 var _benchmark_active := false
 var _benchmark_reported := false
 var _screenshot_dir := SCREENSHOT_DIR
+var _nav: PrototypeNav = null
+var _econ_blue: RTSEconomy = null
+var _econ_red: RTSEconomy = null
+var _queue_blue: ProductionQueue = null
+var _queue_red: ProductionQueue = null
+var _red_wave_left: float = 0.0
+var _produce_seq: int = 0
 
 @onready var rig: Node3D = $CameraRig
 @onready var readout: Label = $HUD/Readout
@@ -55,6 +77,8 @@ func _ready() -> void:
 	_build_midfield()
 	_build_airships()
 	_build_infantry()
+	_setup_production()
+	_nav.build()
 	# Pre-selected demo: HQ (set_selected in _build_blue_base order: first
 	# child) + WalkerBlue0 ring + 3 blue infantry show the selection look.
 	($BlueBase.get_child(0) as RTSBuilding).set_selected(true)
@@ -67,6 +91,10 @@ func _ready() -> void:
 	elif args.has("--capture-proto"):
 		_capture_active = true
 		call_deferred("_capture_set")
+	elif args.has("--capture-26"):
+		_screenshot_dir = PHASE26_SCREENSHOT_DIR
+		_capture_active = true
+		call_deferred("_capture_26_set")
 	elif args.has("--benchmark-proto"):
 		_benchmark_active = true
 		if args.has("--res-720p"):
@@ -86,8 +114,13 @@ func _process(delta: float) -> void:
 		_fps_min = mini(_fps_min, fps)
 		_fps_sum += fps
 		_fps_samples += 1
+	_update_production(delta)
 	if readout != null:
-		readout.text = "PROTOTYPE // BLUE vs RED // FPS %d" % fps
+		var queue_text := ""
+		if _queue_blue != null and not _queue_blue.is_empty():
+			queue_text = " // WALKER %.0fs (q%d)" % [_queue_blue.front_remaining(), _queue_blue.queue.size()]
+		readout.text = "BLUE vs RED // FPS %d // MAT %d // [R] BUILD WALKER%s" % [
+			fps, int(_econ_blue.material) if _econ_blue != null else 0, queue_text]
 	if _benchmark_active and not _benchmark_reported and _elapsed >= 15.0:
 		_benchmark_reported = true
 		var average := _fps_sum / maxi(1, _fps_samples)
@@ -95,6 +128,102 @@ func _process(delta: float) -> void:
 			_fps_min, average, _fps_samples
 		])
 		get_tree().quit(0)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("produce_walker"):
+		try_produce_walker()
+
+
+## --- Production (Phase 2.6 sandbox) ---
+## Blue: player presses R -> ProductionQueue -> gate spawn -> rally move.
+## Red: timer keeps a queue filled up to the wave cap; spawns attack-move
+## toward the blue midfield line. Costs use gf_walker.tres via the shared
+## ProductionQueue/RTSEconomy path (no prototype-only economy rules).
+
+func _setup_production() -> void:
+	_nav = PrototypeNav.new()
+	_nav.name = "PrototypeNav"
+	add_child(_nav)
+	# Building footprints are cut out of the navmesh so produced walkers
+	# and infantry path around bases instead of through them.
+	for b in _all_buildings():
+		_nav.register_obstacle_rect(b.position, Vector2(
+			float(b.get_meta("foot_x", 8.0)), float(b.get_meta("foot_z", 8.0))))
+	_econ_blue = RTSEconomy.new()
+	_econ_blue.setup(true, 400.0, 6.0, 100, 60.0)
+	add_child(_econ_blue)
+	_econ_red = RTSEconomy.new()
+	_econ_red.setup(false, 400.0, 6.0, 100, 60.0)
+	add_child(_econ_red)
+	_queue_blue = ProductionQueue.new()
+	_queue_blue.unit_ready.connect(_on_blue_walker_ready)
+	add_child(_queue_blue)
+	_queue_red = ProductionQueue.new()
+	_queue_red.unit_ready.connect(_on_red_walker_ready)
+	add_child(_queue_red)
+	_red_wave_left = 6.0
+
+
+func _all_buildings() -> Array:
+	var out: Array = []
+	for parent in [$BlueBase, $RedBase]:
+		for c in parent.get_children():
+			if c is RTSBuilding:
+				out.append(c)
+	return out
+
+
+func try_produce_walker() -> String:
+	if _queue_blue == null or _econ_blue == null:
+		return "invalid"
+	var result := _queue_blue.try_enqueue(WalkerDef, _econ_blue)
+	if result == "ok":
+		print("PROTO_PRODUCE queued blue walker (q=%d)" % _queue_blue.queue.size())
+	return result
+
+
+func _update_production(delta: float) -> void:
+	if _queue_red == null:
+		return
+	_red_wave_left -= delta
+	if _red_wave_left > 0.0:
+		return
+	_red_wave_left = RED_WAVE_INTERVAL
+	var red_walkers := 0
+	for w in get_tree().get_nodes_in_group("visual_walkers"):
+		if not bool((w as Node).get("is_player")) and bool((w as Node).call("is_alive")):
+			red_walkers += 1
+	if red_walkers >= RED_WAVE_CAP:
+		return
+	if _queue_red.queue.size() < 2:
+		_queue_red.try_enqueue(WalkerDef, _econ_red)
+
+
+func _on_blue_walker_ready(_def: UnitDefinition) -> void:
+	_produce_seq += 1
+	var w := _spawn_walker("WalkerBlueP%02d" % _produce_seq, WALKER_SPAWN_BLUE, true)
+	w.order_move(WALKER_RALLY_BLUE)
+	print("PROTO_PRODUCE spawned %s -> rally %s" % [w.name, str(WALKER_RALLY_BLUE)])
+
+
+func _on_red_walker_ready(_def: UnitDefinition) -> void:
+	_produce_seq += 1
+	var w := _spawn_walker("WalkerRedP%02d" % _produce_seq, WALKER_SPAWN_RED, false)
+	w.order_attack_move(Vector3(-13, 0, 2))
+	print("PROTO_PRODUCE spawned %s -> attack-move midfield" % w.name)
+
+
+## Produced walkers live under UnitsRoot (Midfield keeps the hand-placed
+## composition asserted by prototype_battlefield_test).
+func _spawn_walker(walker_name: String, pos: Vector3, player_flag: bool) -> VisualWalker:
+	var w := VisualWalker.new()
+	w.name = walker_name
+	w.setup(player_flag, WalkerDef)
+	$UnitsRoot.add_child(w)
+	w.position = pos
+	w.rotation.y = (PI * 0.5) if player_flag else (-PI * 0.5)
+	return w
 
 
 func _mat(color: Color, metallic := 0.0, roughness := 0.9, emission := 0.0) -> StandardMaterial3D:
@@ -112,11 +241,24 @@ func _mat(color: Color, metallic := 0.0, roughness := 0.9, emission := 0.0) -> S
 func _build_ground() -> void:
 	var ground := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(260, 260)
+	plane.size = Vector2(160, 160)
 	ground.mesh = plane
 	ground.material_override = _mat(Color(0.105, 0.125, 0.12, 1.0), 0.0, 0.98)
 	ground.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	$GroundRoot.add_child(ground)
+	# Phase 2.6: world-layer collision so SelectionManager ground picks
+	# (move / attack-move orders) hit the field.
+	var body := StaticBody3D.new()
+	body.name = "GroundBody"
+	body.collision_layer = 1
+	body.collision_mask = 0
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(260, 0.2, 260)
+	col.shape = shape
+	col.position = Vector3(0, -0.1, 0)
+	body.add_child(col)
+	$GroundRoot.add_child(body)
 	# Faction zones remain readable without becoming the dominant colors. A
 	# neutral ash midfield replaces the previous full-height yellow divider.
 	_add_flat(Vector3(-55, 0, 0), Vector3(70, 0.06, 112), _mat(Color(0.065, 0.12, 0.23, 1.0), 0.0, 1.0))
@@ -224,6 +366,8 @@ func _place_building(parent: Node3D, building_name: String, pos: Vector3, yaw_de
 	b.set("_ring_radius", maxf(foot_x, foot_z) * 0.62)
 	b.set("_bar_height", bar_h)
 	b.set_meta("prototype_role", building_name)
+	b.set_meta("foot_x", foot_x)
+	b.set_meta("foot_z", foot_z)
 	if selected:
 		b.set_selected(true)
 	return b
@@ -442,7 +586,7 @@ func _place_squad(spots: Array, player_flag: bool) -> void:
 		unit.position = spots[i]
 		unit.rotation.y = (PI * 0.5) if player_flag else (-PI * 0.5)
 		$UnitsRoot.add_child(unit)
-		unit.process_mode = Node.PROCESS_MODE_DISABLED
+		# Phase 2.6: infantry stay live (auto-engage makes the skirmish).
 		if player_flag and i < 3:
 			unit.set_selected(true)
 
@@ -537,4 +681,58 @@ func _capture_polish_set() -> void:
 	await _capture("airship_support")
 
 	print("PROTOTYPE_POLISH_CAPTURE_DONE shots=6")
+	get_tree().quit(0)
+
+
+## Phase 2.6 capture set: production / battle / camera / selection reads.
+## A blue walker is force-produced and a red wave is pulled forward so the
+## new systems are visible in every frame.
+func _capture_26_set() -> void:
+	var absolute_dir := ProjectSettings.globalize_path(_screenshot_dir)
+	DirAccess.make_dir_recursive_absolute(absolute_dir)
+	DisplayServer.window_set_size(Vector2i(1920, 1080))
+	$HUD.visible = false
+	await get_tree().create_timer(1.0).timeout
+
+	# Force one blue production cycle for the spawn/rally shots.
+	var produced := _spawn_walker("WalkerBlueCapture", WALKER_SPAWN_BLUE, true)
+	produced.order_move(WALKER_RALLY_BLUE)
+
+	# Production read: factory gate + fresh walker moving to rally.
+	_set_view(20.0, Vector3(-52, 0, 6))
+	await get_tree().create_timer(2.0).timeout
+	await _capture("p26_production_spawn")
+
+	# Rally read: walker closing on the rally point with the base behind.
+	await get_tree().create_timer(2.5).timeout
+	_set_view(24.0, Vector3(-46, 0, 4))
+	await _capture("p26_rally_move")
+
+	# Selection read: mixed box selection (walker + infantry rings).
+	produced.set_selected(true)
+	var blue0 := $Midfield.get_node_or_null("WalkerBlue0") as VisualWalker
+	if blue0 != null:
+		blue0.set_selected(true)
+	_set_view(15.0, Vector3(-13, 0, 2))
+	await _capture("p26_selection_mixed")
+	produced.set_selected(false)
+
+	# Battle read: red wave pushed into the midfield clash.
+	var red_wave := _spawn_walker("WalkerRedCapture", Vector3(8, 0, -3), false)
+	red_wave.order_attack_move(Vector3(-13, 0, 2))
+	if blue0 != null:
+		blue0.order_attack_move(Vector3(8, 0, -3))
+	await get_tree().create_timer(4.0).timeout
+	_set_view(18.0, Vector3(0, 0, 0))
+	await _capture("p26_walker_combat")
+
+	# Camera read: far zoom + south pan — the south field stays reachable.
+	_set_view(60.0, Vector3(0, 0, 34))
+	await _capture("p26_camera_south")
+
+	# Overview read: full slice with walkers / titan / airships / bases.
+	_set_view(56.0, Vector3(0, 0, -4))
+	await _capture("p26_battle_overview")
+
+	print("PHASE26_CAPTURE_DONE shots=6")
 	get_tree().quit(0)

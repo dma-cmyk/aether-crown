@@ -16,9 +16,9 @@ func _ready() -> void:
 func issue_move(units: Array, dest: Vector3) -> void:
 	var slots := formation_slots(dest, units.size())
 	for i in range(units.size()):
-		var u := units[i] as RTSUnit
-		if u != null and u.is_alive():
-			u.order_move(slots[i])
+		var u: Node = units[i]
+		if _orderable(u, "order_move"):
+			u.call("order_move", slots[i])
 
 
 func issue_attack(units: Array, target: Node3D) -> void:
@@ -29,17 +29,26 @@ func issue_attack(units: Array, target: Node3D) -> void:
 	if not bool(target.call("is_alive")):
 		return
 	for u in units:
-		var unit := u as RTSUnit
-		if unit != null and unit.is_alive():
-			unit.order_attack(target)
+		if _orderable(u, "order_attack"):
+			u.call("order_attack", target)
 
 
 func issue_attack_move(units: Array, dest: Vector3) -> void:
 	var slots := formation_slots(dest, units.size())
 	for i in range(units.size()):
-		var u := units[i] as RTSUnit
-		if u != null and u.is_alive():
-			u.order_attack_move(slots[i])
+		var u: Node = units[i]
+		if _orderable(u, "order_attack_move"):
+			u.call("order_attack_move", slots[i])
+
+
+## Duck-typed order target (Phase 2.6): RTSUnit infantry and VisualWalker
+## both expose order_* + is_alive; unknown nodes are skipped silently.
+func _orderable(u: Node, method: StringName) -> bool:
+	if u == null or not is_instance_valid(u):
+		return false
+	if not u.has_method(method) or not u.has_method("is_alive"):
+		return false
+	return bool(u.call("is_alive"))
 
 
 func formation_slots(center: Vector3, count: int) -> Array:

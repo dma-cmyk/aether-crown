@@ -201,12 +201,15 @@ func order_attack_move(dest: Vector3) -> void:
 	nav.target_position = dest
 
 
-func take_damage(amount: float, attacker: RTSUnit) -> void:
+## Attacker is duck-typed (Phase 2.6): RTSUnit attackers get bloodied/kill
+## credit; other damage sources (VisualWalker, shells) pass themselves or
+## null and only the HP path runs.
+func take_damage(amount: float, attacker: Node) -> void:
 	if not is_alive():
 		return
 	hp = maxf(0.0, hp - amount)
 	bloodied = true
-	if attacker != null and is_instance_valid(attacker):
+	if attacker is RTSUnit:
 		attacker.bloodied = true
 	damaged.emit(self)
 	_refresh_visuals()
@@ -214,9 +217,9 @@ func take_damage(amount: float, attacker: RTSUnit) -> void:
 		_die(attacker)
 
 
-func _die(attacker: RTSUnit) -> void:
+func _die(attacker: Node) -> void:
 	state = State.DEAD
-	if attacker != null and is_instance_valid(attacker):
+	if attacker is RTSUnit:
 		attacker.kills += 1
 		attacker.on_confirmed_kill()
 	set_deferred("collision_layer", 0)
