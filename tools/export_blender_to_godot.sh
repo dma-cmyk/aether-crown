@@ -29,26 +29,36 @@ done
 
 if [[ -n "$BLENDER_SCRIPT" ]]; then
   echo "[1/3] blender --background --python $BLENDER_SCRIPT"
-  blender --background --python "$ROOT/$BLENDER_SCRIPT"
 elif [[ -n "$BLEND_FILE" ]]; then
   [[ -z "$OUT_NAME" ]] && { echo "--out required with --blend"; usage; }
   echo "[1/3] blender --background $BLEND_FILE --python export_glb.py"
-  blender --background "$ROOT/$BLEND_FILE" --python "$ROOT/blender/scripts/export_glb.py" -- --out "$ROOT/blender/exports/$OUT_NAME"
 else
   echo "either --script or --blend required"
   usage
 fi
 
-echo "[2/3] copy blender/exports/*.glb -> game/assets/models/"
+# マーカー以降に書き出された GLB のみコピー対象にする (過去実行の無関係 GLB 再コピー防止)
+RUN_MARKER="$(mktemp)"
+trap 'rm -f "$RUN_MARKER"' EXIT
+
+if [[ -n "$BLENDER_SCRIPT" ]]; then
+  blender --background --python "$ROOT/$BLENDER_SCRIPT"
+else
+  blender --background "$ROOT/$BLEND_FILE" --python "$ROOT/blender/scripts/export_glb.py" -- --out "$ROOT/blender/exports/$OUT_NAME"
+fi
+
+echo "[2/3] copy blender/exports/*.glb -> game/assets/models/ (this run only)"
 mkdir -p "$ROOT/game/assets/models"
 shopt -s nullglob
 copied=0
 for f in "$ROOT"/blender/exports/*.glb; do
-  cp -v "$f" "$ROOT/game/assets/models/"
-  copied=$((copied+1))
+  if [[ "$f" -nt "$RUN_MARKER" ]]; then
+    cp -v "$f" "$ROOT/game/assets/models/"
+    copied=$((copied+1))
+  fi
 done
 if [[ $copied -eq 0 ]]; then
-  echo "ERROR: no .glb in blender/exports/"
+  echo "ERROR: no new .glb generated in blender/exports/ by this run"
   exit 1
 fi
 

@@ -15,7 +15,6 @@ const FactoryGLB: PackedScene = preload("res://assets/models/gearforge_factory.g
 const BoilerGLB: PackedScene = preload("res://assets/models/gearforge_boiler_works.glb")
 const AetherGLB: PackedScene = preload("res://assets/models/gearforge_aether_well.glb")
 const TitanGLB: PackedScene = preload("res://assets/models/gearforge_titan.glb")
-const WalkerGLB: PackedScene = preload("res://assets/models/gearforge_walker_prototype.glb")
 const InfantryScene: PackedScene = preload("res://scenes/units/infantry.tscn")
 const InfantryDef: UnitDefinition = preload("res://resources/units/gf_infantry.tres")
 
@@ -29,7 +28,6 @@ var _elapsed := 0.0
 var _capture_active := false
 var _benchmark_active := false
 var _benchmark_reported := false
-var _ring_mat: StandardMaterial3D
 var _screenshot_dir := SCREENSHOT_DIR
 
 @onready var rig: Node3D = $CameraRig
@@ -344,55 +342,17 @@ func _build_red_base() -> void:
 		$RedBase.add_child(b)
 
 
-func _walker_ring() -> StandardMaterial3D:
-	if _ring_mat == null:
-		_ring_mat = StandardMaterial3D.new()
-		_ring_mat.albedo_color = Color(1.0, 0.9, 0.2, 1.0)
-		_ring_mat.emission_enabled = true
-		_ring_mat.emission = Color(1.0, 0.85, 0.2, 1.0)
-		_ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	return _ring_mat
-
-
 func _place_walker(walker_name: String, pos: Vector3, yaw_deg: float, player_flag: bool, selected := false) -> Node3D:
-	var root := Node3D.new()
-	root.name = walker_name
-	root.set_meta("is_player", player_flag)
-	root.set_meta("selected", selected)
-	$Midfield.add_child(root)
-	root.position = pos
-	root.rotation.y = deg_to_rad(yaw_deg)
-	var visual := (WalkerGLB.instantiate()) as Node3D
-	root.add_child(visual)
-	for c in _all_meshes(visual):
-		(c as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	var col := CollisionShape3D.new()
-	var shape := BoxShape3D.new()
-	shape.size = Vector3(2.8, 4.4, 2.5)
-	col.shape = shape
-	col.position = Vector3(0, 2.2, 0)
-	root.add_child(col)
-	# Small faction plates keep the shared industrial walker readable in a
-	# mixed formation without recoloring the production materials.
-	var faction_color := Color(0.14, 0.64, 1.0, 1.0) if player_flag else Color(1.0, 0.22, 0.12, 1.0)
-	var faction_mat := _mat(faction_color, 0.15, 0.38, 1.8)
-	for sx in [-1.0, 1.0]:
-		_box(root, "FactionPlate", Vector3(0.30, 0.10, 0.48),
-			Vector3(sx * 0.95, -0.64, 3.20), faction_mat)
-	var ring := MeshInstance3D.new()
-	var rm := TorusMesh.new()
-	rm.inner_radius = 1.62
-	rm.outer_radius = 1.78
-	rm.rings = 32
-	rm.ring_segments = 6
-	ring.mesh = rm
-	ring.material_override = _walker_ring()
-	ring.position = Vector3(0, 0.1, 0)
-	ring.visible = selected
-	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(ring)
-	root.set_meta("selected", selected)
-	return root
+	# Phase 2.5D.1: production Ironstride wrappers (LOD + collision +
+	# faction plates + selection) replace the hand-built prototype stand-ins.
+	var walker := VisualWalker.new()
+	walker.name = walker_name
+	walker.setup(player_flag)
+	$Midfield.add_child(walker)
+	walker.position = pos
+	walker.rotation.y = deg_to_rad(yaw_deg)
+	walker.set_selected(selected)
+	return walker
 
 
 func _build_midfield() -> void:
