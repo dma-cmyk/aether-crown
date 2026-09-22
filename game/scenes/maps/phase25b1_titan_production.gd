@@ -14,7 +14,7 @@ extends Node3D
 const InfantryScene: PackedScene = preload("res://scenes/units/infantry.tscn")
 const InfantryDef: UnitDefinition = preload("res://resources/units/gf_infantry.tres")
 
-const SCREENSHOT_DIR := "res://../docs/screenshots/phase25b1"
+const SCREENSHOT_DIR := "res://../docs/screenshots/phase25b2"
 
 var titan: VisualTitan
 var extra_titans: Array = []
@@ -44,7 +44,7 @@ func _ready() -> void:
 		_force_lod = 1
 	if _force_lod >= 0:
 		titan.set_lod(_force_lod)
-	if args.has("--stress-25b1"):
+	if args.has("--stress-25b1") and not args.has("--capture-25b1"):
 		_spawn_titan(Vector3(-14, 0, -6))
 		_spawn_titan(Vector3(14, 0, -6))
 	if args.has("--capture-25b1"):

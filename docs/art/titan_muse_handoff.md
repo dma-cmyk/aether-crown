@@ -17,7 +17,7 @@ Production LOD0 の Reference-Informed Visual Polish と生成パイプライン
 - 完了: Blender source 保存、GLB export、Godot asset 配置・import
 - 完了: Godot showcase、polish後8構図撮影、Phase 2.5B / 2.5B.1 relevant regression
 - 未確定: アニメーション用 rig、LOD2、独自 texture / decal
-- 要更新: 既存LOD1はPhase 2.5B.1時点の形状。anchor互換で動作するが、polish後LOD0に合わせた再生成が必要
+- 完了 (Phase 2.5B.2): LOD1をpolish後LOD0へ再生成 (5 mesh / 4,804 tris、anchor parity維持)
 
 ## 正本と再生成
 
@@ -123,8 +123,9 @@ front は Blender `-Y`。Godot では GLB import 後 `+Z` を向き、現行 `Vi
 
 - LOD0 は material ごとに8 mesh / 14,964 tris。透過なし、texture memory 0。
 - シルエットと material boundary を変えない篤囲で、内部の隠れ面は将来削除可。
-- 現行LOD1は5 mesh / 4,500 trisでruntime互換・anchor parityあり。ただしpolish前の造形なので、
-  foot deck / knee guard / torso layering / recoil cradle / brace crown / reactor cageを簡略化して再生成する。
+- 現行LOD1は5 mesh / 4,804 tris (Phase 2.5B.2でpolish後LOD0へ再同期済み)。
+  foot deck / knee guard / torso layering / recoil cradle / brace crown /
+  reactor cageを簡略再現し、anchor parity (≤0.05) を維持。
 - LOD2 目標: 3–4 mesh / 1,800–2,500 tris。主砲・脚・torso・双煙突・reactor glow だけ残す。
 - LOD でも muzzle / exhaust / reactor anchor 名と位置は不変とする。
 - rig 化する場合は material 結合前の生成部品単位を script から再構築し、
@@ -148,18 +149,27 @@ Godot ERROR 0 / SCRIPT ERROR 0。
 
 ## 次に行う場合の順序
 
-1. `make_gearforge_titan_lod1.py`をpolish後LOD0へ追従させる。LOD0の全detailを移植せず、
-   foot / knee / recoil cradle / brace / reactor cageの読みを優先する。
-2. 32m / 34mのLOD切替で形状popを比較し、LOD1の4 anchor座標を維持する。
-3. rig化時はankle fork / knee axle / thigh piston / cannon cradleを可動階層へ分ける。
-4. LOD2、歩行・反動animation、decalはLOD1再受入れ後に判断する。
+1. (Phase 2.5B.2で完了) LOD1再同期・32m/34m切替確認・4 anchor維持。
+2. rig化時はankle fork / knee axle / thigh piston / cannon cradleを可動階層へ分ける。
+3. LOD2、歩行・反動animation、decalはTitan最終判断後に着手する。
 
 ## Known risks
 
-- LOD0は14,964 tris。巨大ユニット目安内だが、複数体benchmarkはLOD1再生成後に再確認する。
+- LOD0は14,964 tris。複数体benchmarkはPhase 2.5B.2で再確認済み
+  (Titan×3でmin 46 / avg 48、sustained 30未満なし)。
 - モデルは現在 static。歩行の重量感は proportions / piston で示し、animation は後続。
 - `VisualTitan` collisionはPhase 2.5B.1のradius 3.0m / height 9mを維持。sole外端約2.45mに
   infantry半径0.35mを加えても2.80mで収まり、数値上の変更は不要。relevant testで再確認する。
-- LOD1はpolish前モデルのため、現状でも機能上は切替可能だがclose-to-farのdetail popが残る。
 - Blender exportは任意MeshOptimizer library不在のメッセージを出すが、Draco検出、GLB生成、
   Godot importと全validatorは成功している。今回のasset固有障害ではない。
+
+## Phase 2.5B.2 productionization (Muse Spark実施)
+
+- Sol polish受け入れ: generator再実行でaccessor全32一致、mesh 8 / node 12一致。
+- LOD1再同期: 5 mesh / 4,804 tris / 307,144 bytes、anchor parity維持。
+- collision r3.0 / selection / footprint / threshold 32m/34mは変更なし。
+- benchmark (Iris Xe): LOD0 min48/avg50、LOD1 min48/avg50、
+  strategic min47/avg49、Titan×3 min46/avg48。sustained 30未満なし。
+- regression 14 suite PASS、ERROR 0 / SCRIPT ERROR 0。
+- 詳細は `docs/phase25b2.md` / `reports/phase25b2_report.md`。
+  Titanは本Phaseで最終的に閉じる。
