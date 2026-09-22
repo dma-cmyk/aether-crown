@@ -73,3 +73,11 @@ Aether の cyan と燃焼熱を混同させない。
 ## Phase boundary
 
 今 Phase は Titan 1体で停止。Airship、Building Set、Titan 派生、gameplay / AI / balance は着手しない。
+
+## Muse Spark Acceptance (2026-09-22)
+
+Sol成果物を受け入れレビューし、生産コードの変更なしで受け入れ可能と判断。
+詳細は `reports/phase25b_report.md` の `Muse Spark Acceptance` 節。
+- 10観点 (close/mid/strategic/back/Gearforge性/建物一貫/スケール/gameplay視認/weapon/silhouette) すべてPASS。
+- 微修正なし (emissive・collisionは次Phase送り、根拠をreportに記録)。
+- bounds・anchor・再生成一致・benchmark両解像度・全回帰を検証済み。
