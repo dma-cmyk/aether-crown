@@ -6,7 +6,7 @@ extends Node3D
 
 signal plan_changed(new_plan: int)
 
-enum Plan { BUILD_FORCE, CAPTURE_OUTPOST, DEFEND_OUTPOST, ATTACK_PLAYER_HQ }
+enum Plan { BUILD_FORCE, CAPTURE_OUTPOST, DEFEND_OUTPOST, ATTACK_PLAYER_HQ, CAPTURE_CITY, DEFEND_CITY }
 
 const THINK_INTERVAL: float = 2.0
 const REISSUE_INTERVAL: float = 12.0
@@ -25,6 +25,8 @@ var match_mgr: MatchManager
 var enemy_hq: RTSBuilding
 var player_hq: RTSBuilding
 var outpost: RTSOutpost
+var cities: Array = [] # Phase 2A: RTSCity list. Empty on the Phase 1.5 map.
+var target_city: RTSCity = null # Phase 2A: city chosen by _decide_city.
 var infantry_def: UnitDefinition
 var marksman_def: UnitDefinition
 var heavy_def: UnitDefinition
@@ -43,6 +45,10 @@ func plan_name() -> String:
 			return "DEFEND_OUTPOST"
 		Plan.ATTACK_PLAYER_HQ:
 			return "ATTACK_PLAYER_HQ"
+		Plan.CAPTURE_CITY:
+			return "CAPTURE_CITY"
+		Plan.DEFEND_CITY:
+			return "DEFEND_CITY"
 	return "?"
 
 
@@ -84,6 +90,8 @@ func _think() -> void:
 
 
 func _decide(force: Array) -> int:
+	if not cities.is_empty():
+		return _decide_city(force)
 	if player_hq != null and not player_hq.is_alive():
 		return Plan.ATTACK_PLAYER_HQ
 	var n := force.size()
@@ -95,6 +103,67 @@ func _decide(force: Array) -> int:
 	if outpost_owned and n < ATTACK_ARMY:
 		return Plan.DEFEND_OUTPOST
 	return Plan.BUILD_FORCE
+
+
+## Phase 2A city logic. Picks among neutral / player-owned cities by
+## ownership priority minus distance, so the AI spreads across the map
+## instead of rushing Central forever. Own contested cities pull the army
+## back to defend.
+func _decide_city(force: Array) -> int:
+	if player_hq != null and not player_hq.is_alive():
+		return Plan.ATTACK_PLAYER_HQ
+	var n := force.size()
+	if n >= ATTACK_ARMY:
+		target_city = null
+		return Plan.ATTACK_PLAYER_HQ
+	var defend := _threatened_own_city()
+	if defend != null and n < CAPTURE_ARMY:
+		target_city = defend
+		return Plan.DEFEND_CITY
+	var target := _pick_city_target()
+	if target != null and n >= CAPTURE_ARMY:
+		target_city = target
+		return Plan.CAPTURE_CITY
+	if defend != null:
+		target_city = defend
+		return Plan.DEFEND_CITY
+	target_city = null
+	return Plan.BUILD_FORCE
+
+
+## Own (ENEMY) city with enemy presence inside: needs defenders.
+func _threatened_own_city() -> RTSCity:
+	for c in cities:
+		var city := c as RTSCity
+		if city != null and city.owner_side == RTSCity.Owner.ENEMY and city.contested:
+			return city
+	return null
+
+
+## Best uncaptured city: recapture (PLAYER-owned) scores above neutral,
+## closer cities score above distant ones.
+func _pick_city_target() -> RTSCity:
+	var best: RTSCity = null
+	var best_score := -1e9
+	var from := enemy_hq.global_position if enemy_hq != null else Vector3.ZERO
+	for c in cities:
+		var city := c as RTSCity
+		if city == null or city.owner_side == RTSCity.Owner.ENEMY:
+			continue
+		var score := 0.0
+		if city.owner_side == RTSCity.Owner.PLAYER:
+			score += 120.0 # recapture priority
+		else:
+			score += 100.0 # neutral expansion
+		var d: Vector3 = city.global_position - from
+		d.y = 0.0
+		score -= d.length() * 1.5
+		if city.contested:
+			score += 15.0 # join the ongoing fight
+		if score > best_score:
+			best_score = score
+			best = city
+	return best
 
 
 ## Idle/MOVING units only: fighters (CHASING/ATTACKING) are never yanked.
@@ -132,6 +201,9 @@ func _plan_destination() -> Vector3:
 		Plan.ATTACK_PLAYER_HQ:
 			if player_hq != null and player_hq.is_alive():
 				return player_hq.global_position
+		Plan.CAPTURE_CITY, Plan.DEFEND_CITY:
+			if target_city != null and is_instance_valid(target_city):
+				return target_city.global_position
 	return Vector3.INF
 
 
