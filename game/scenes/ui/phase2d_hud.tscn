@@ -61,7 +61,7 @@ text = "--"
 
 [node name="ModeLabel" type="Label" parent="DebugBox"]
 modulate = Color(0.7, 0.7, 0.7, 1)
-text = "LMB select | Drag box | RMB move/attack | A+click attack-move"
+text = "LMB select | Drag box | RMB move/attack | A+click attack-move | F3 debug"
 
 [node name="CitiesBox" type="VBoxContainer" parent="."]
 anchors_preset = 1

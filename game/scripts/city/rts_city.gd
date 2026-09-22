@@ -32,6 +32,23 @@ var _bar_fg: MeshInstance3D
 var _bar_bg: MeshInstance3D
 var _label: Label3D
 
+## Phase 2.8: production building per city id (no new modeling). Gameplay
+## (capture/collision/radius) is untouched; only the visual body changes.
+const CITY_BUILDING := {
+	"west_foundry": "res://assets/models/gearforge_factory.glb",
+	"north_relay": "res://assets/models/gearforge_aether_well.glb",
+	"central_nexus": "res://assets/models/gearforge_hq_command.glb",
+	"south_works": "res://assets/models/gearforge_boiler_works.glb",
+	"east_bastion": "res://assets/models/gearforge_barracks.glb",
+}
+const CITY_VISUAL_SCALE := {
+	"west_foundry": 0.82,
+	"north_relay": 0.85,
+	"central_nexus": 0.72,
+	"south_works": 0.85,
+	"east_bastion": 0.9,
+}
+
 
 ## Called by the map right after construction, before add_child().
 func setup(def: CityDefinition) -> void:
@@ -189,35 +206,46 @@ func _build_visual() -> void:
 	add_child(pave)
 	var ring := MeshInstance3D.new()
 	var ring_mesh := TorusMesh.new()
-	ring_mesh.inner_radius = capture_radius - 0.18
+	ring_mesh.inner_radius = capture_radius - 0.10
 	ring_mesh.outer_radius = capture_radius
+	ring_mesh.rings = 48
 	ring.mesh = ring_mesh
 	ring.position = Vector3(0, 0.25, 0)
 	ring.material_override = _ring_mat
 	add_child(ring)
 
-	# Central building: body + roof (Gearforge brass/stone language)
-	var body := MeshInstance3D.new()
-	var body_mesh := BoxMesh.new()
-	body_mesh.size = Vector3(4.0, 2.6, 3.4)
-	body.mesh = body_mesh
-	body.position = Vector3(0, 1.5, -0.6)
-	body.material_override = stone
-	add_child(body)
-	var roof := MeshInstance3D.new()
-	var roof_mesh := BoxMesh.new()
-	roof_mesh.size = Vector3(4.6, 0.4, 4.0)
-	roof.mesh = roof_mesh
-	roof.position = Vector3(0, 3.0, -0.6)
-	roof.material_override = brass
-	add_child(roof)
-	var tower := MeshInstance3D.new()
-	var tower_mesh := BoxMesh.new()
-	tower_mesh.size = Vector3(1.2, 4.2, 1.2)
-	tower.mesh = tower_mesh
-	tower.position = Vector3(-1.2, 2.3, -0.6)
-	tower.material_override = brass
-	add_child(tower)
+	# Central building: existing production asset per city id (Phase 2.8).
+	# Falls back to the previous primitive hall only for unknown ids.
+	var building_path: String = str(CITY_BUILDING.get(city_id, ""))
+	if building_path != "" and ResourceLoader.exists(building_path):
+		var glb: PackedScene = load(building_path)
+		var building := glb.instantiate() as Node3D
+		building.scale = Vector3.ONE * float(CITY_VISUAL_SCALE.get(city_id, 0.85))
+		add_child(building)
+		for c in _all_meshes(building):
+			(c as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	else:
+		var body := MeshInstance3D.new()
+		var body_mesh := BoxMesh.new()
+		body_mesh.size = Vector3(4.0, 2.6, 3.4)
+		body.mesh = body_mesh
+		body.position = Vector3(0, 1.5, -0.6)
+		body.material_override = stone
+		add_child(body)
+		var roof := MeshInstance3D.new()
+		var roof_mesh := BoxMesh.new()
+		roof_mesh.size = Vector3(4.6, 0.4, 4.0)
+		roof.mesh = roof_mesh
+		roof.position = Vector3(0, 3.0, -0.6)
+		roof.material_override = brass
+		add_child(roof)
+		var tower := MeshInstance3D.new()
+		var tower_mesh := BoxMesh.new()
+		tower_mesh.size = Vector3(1.2, 4.2, 1.2)
+		tower.mesh = tower_mesh
+		tower.position = Vector3(-1.2, 2.3, -0.6)
+		tower.material_override = brass
+		add_child(tower)
 
 	# Supporting buildings (1-2 small sheds)
 	var shed := MeshInstance3D.new()
@@ -287,9 +315,9 @@ func _build_visual() -> void:
 	_label = Label3D.new()
 	_label.position = Vector3(0, 7.6, 2.6)
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_label.font_size = 48
+	_label.font_size = 30
 	_label.pixel_size = 0.01
-	_label.modulate = Color(1, 1, 1, 1)
+	_label.modulate = Color(1, 1, 1, 0.92)
 	add_child(_label)
 
 	var col := CollisionShape3D.new()
@@ -308,6 +336,10 @@ func _refresh_visuals() -> void:
 	if _glow_mat != null:
 		_glow_mat.albedo_color = owner_color()
 		_glow_mat.emission = owner_color()
+	if _ring_mat != null:
+		# Capture ring follows ownership (subtle, not a giant prototype disc).
+		var c := owner_color()
+		_ring_mat.albedo_color = Color(c.r, c.g, c.b, 0.34)
 	if _bar_fg != null:
 		var frac := progress_fraction()
 		_bar_fg.visible = frac > 0.001
@@ -316,3 +348,12 @@ func _refresh_visuals() -> void:
 		_bar_fg.position = Vector3(-2.0 * (1.0 - frac), 6.8, 2.62)
 	if _label != null:
 		_label.text = status_text()
+
+
+func _all_meshes(node: Node) -> Array:
+	var out: Array = []
+	if node is MeshInstance3D:
+		out.append(node)
+	for c in node.get_children():
+		out.append_array(_all_meshes(c))
+	return out

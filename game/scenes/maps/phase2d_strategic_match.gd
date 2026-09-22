@@ -13,6 +13,8 @@ const MarksmanDef: UnitDefinition = preload("res://resources/units/2d_marksman.t
 const HeavyDef: UnitDefinition = preload("res://resources/units/2d_heavy_guard.tres")
 const WalkerDef: UnitDefinition = preload("res://resources/units/gf_walker.tres")
 const HqDef: BuildingDefinition = preload("res://resources/buildings/gf_hq.tres")
+const HqGLB: PackedScene = preload("res://assets/models/gearforge_hq_command.glb")
+const AetherGLB: PackedScene = preload("res://assets/models/gearforge_aether_well.glb")
 const WestDef: CityDefinition = preload("res://resources/cities/west_foundry.tres")
 const NorthDef: CityDefinition = preload("res://resources/cities/north_relay.tres")
 const CentralDef: CityDefinition = preload("res://resources/cities/central_nexus.tres")
@@ -90,8 +92,8 @@ func _ready() -> void:
 	add_to_group("match_map")
 	map_nav.player_base = PLAYER_BASE_POS
 	map_nav.enemy_base = ENEMY_BASE_POS
-	map_nav.register_obstacle_rect(PLAYER_BASE_POS, Vector2(8, 7))
-	map_nav.register_obstacle_rect(ENEMY_BASE_POS, Vector2(8, 7))
+	map_nav.register_obstacle_rect(PLAYER_BASE_POS, Vector2(15, 13))
+	map_nav.register_obstacle_rect(ENEMY_BASE_POS, Vector2(15, 13))
 	_build_decor()
 	map_nav.build($GroundRoot)
 	_build_roads()
@@ -513,8 +515,30 @@ func _spawn_hq(player_flag: bool, pos: Vector3) -> void:
 	hq.position = Vector3(pos.x, _ground_y(pos.x, pos.z), pos.z)
 	hq.max_hp = HQ_HP
 	hq.hp = HQ_HP
-	HqVisual.build(hq, player_flag)
 	buildings_root.add_child(hq)
+	# Phase 2.8: production Gearforge HQ visual (replaces the primitive
+	# blockout). Gameplay node/collision/targeting/MatchManager wiring is
+	# unchanged; only the visual child and the faction accents differ.
+	var visual := HqGLB.instantiate() as Node3D
+	hq.add_child(visual)
+	for c in _all_meshes(visual):
+		(c as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(15.0, 13.0, 13.0)
+	col.shape = shape
+	col.position = Vector3(0, 6.5, 0)
+	hq.add_child(col)
+	_banner(hq, Vector3(-6.0, 0, -5.5), player_flag)
+	_banner(hq, Vector3(6.0, 0, -5.5), player_flag)
+	# Walker production anchor: an Aether Works plant beside the HQ marks
+	# the factory gate (readability only; production logic untouched).
+	var plant := AetherGLB.instantiate() as Node3D
+	plant.position = Vector3(9.5 if player_flag else -9.5, 0, 6.5)
+	plant.rotation.y = deg_to_rad(12.0 if player_flag else -12.0)
+	hq.add_child(plant)
+	for c in _all_meshes(plant):
+		(c as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	hq.damaged.connect(_on_building_damaged)
 	if player_flag:
 		player_hq = hq
@@ -522,6 +546,48 @@ func _spawn_hq(player_flag: bool, pos: Vector3) -> void:
 	else:
 		enemy_hq = hq
 		hq.died.connect(_on_enemy_hq_died)
+
+
+func _all_meshes(node: Node) -> Array:
+	var out: Array = []
+	if node is MeshInstance3D:
+		out.append(node)
+	for c in node.get_children():
+		out.append_array(_all_meshes(c))
+	return out
+
+
+func _banner(parent: Node3D, pos: Vector3, player_flag: bool) -> void:
+	var color := Color(0.25, 0.55, 1.0, 1.0) if player_flag else Color(1.0, 0.30, 0.22, 1.0)
+	var pole := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.09
+	cm.bottom_radius = 0.11
+	cm.height = 6.0
+	cm.radial_segments = 8
+	pole.mesh = cm
+	pole.material_override = _mat_plain(Color(0.20, 0.20, 0.22, 1.0), 0.6, 0.6)
+	pole.position = pos + Vector3(0, 3.0, 0)
+	parent.add_child(pole)
+	var flag := MeshInstance3D.new()
+	var fm := BoxMesh.new()
+	fm.size = Vector3(1.6, 1.0, 0.08)
+	flag.mesh = fm
+	flag.material_override = _mat_plain(color, 0.0, 0.6, 1.2)
+	flag.position = pos + Vector3(0.85, 5.2, 0)
+	parent.add_child(flag)
+
+
+func _mat_plain(color: Color, metallic := 0.0, roughness := 0.9, emission := 0.0) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.metallic = metallic
+	material.roughness = roughness
+	if emission > 0.0:
+		material.emission_enabled = true
+		material.emission = color
+		material.emission_energy_multiplier = emission
+	return material
 
 
 func _spawn_city(node: RTSCity, def: CityDefinition, pos: Vector3) -> void:

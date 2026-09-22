@@ -13,6 +13,7 @@ var _strat: EnemyStrategist
 var _defs: Array[UnitDefinition] = []
 var _hq_selected: RTSBuilding
 var _mgmt_city: String = "west_foundry"
+var _debug_visible: bool = false
 
 var _accum: float = 0.0
 var _toast_left: float = 0.0
@@ -66,6 +67,7 @@ func _ready() -> void:
 	_sel_panel.visible = false
 	_overlay.visible = false
 	_toast_label.visible = false
+	$DebugBox.visible = false
 
 
 func setup(map_node: Node3D) -> void:
@@ -129,6 +131,8 @@ func _process(delta: float) -> void:
 	if _map == null:
 		return
 	_refresh_top()
+	# Overview text is gameplay info (frontline read), so it stays fresh
+	# even while the rest of the debug box is hidden behind F3.
 	_refresh_debug()
 	_refresh_cities()
 	_refresh_territories()
@@ -274,6 +278,13 @@ func _produce(index: int) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Debug readouts are opt-in (Phase 2.8): F3 toggles FPS/AI/unit debug
+	# so the normal HUD stays on gameplay info only.
+	if event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo:
+		if (event as InputEventKey).keycode == KEY_F3:
+			_debug_visible = not _debug_visible
+			$DebugBox.visible = _debug_visible
+			return
 	if _hq_selected == null or not is_instance_valid(_hq_selected):
 		return
 	if event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo:
