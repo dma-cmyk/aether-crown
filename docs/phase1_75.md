@@ -139,6 +139,24 @@ VisualSlice (visual_slice.gd)
 合格条件: ERROR=0 / SCRIPT ERROR=0 / Phase1回帰PASS / Phase1.5回帰PASS /
 Visual Sliceクラッシュなし / 既存Match遊戯可 / FPS測定可 — すべて満たす。
 
+## Screenshots
+
+描画あり実機 (Intel Iris Xe, 1920x1008) で撮影。撮影用の一時スクリプトは
+作業後に削除済みで、本番コードの変更はない。
+
+![Phase 1.75 Overview](screenshots/phase1_75/overview.png)
+
+- overview.png: 都市全景 + 赤青両軍 + 飛行船 (右下) + tracer + HUD。開戦直後
+
+![Phase 1.75 Battle](screenshots/phase1_75/battle.png)
+
+- battle.png: 交戦中。tracer / explosion / smoke / steam / 両軍 / Titan砲撃の煙
+
+![Phase 1.75 Titan and Airship](screenshots/phase1_75/titan_airship.png)
+
+- titan_airship.png: 飛行船 (巨大気嚢+発光帯) と Titan (中央で砲撃中) と
+  歩兵のスケール比較。都市・両軍・HUDも同フレーム
+
 ## commit hash
 
 COMMIT: 9e59f04 (feat: phase 1.75 visual vertical slice)
