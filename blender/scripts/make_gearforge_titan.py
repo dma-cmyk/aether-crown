@@ -5,10 +5,13 @@ Outputs:
   blender/exports/gearforge_titan.glb
 
 Design intent: a readable 11.5 m Aether siege engine with a deliberately
-asymmetric Crownspike cannon, compact sensor head, piston legs, twin boiler
-stacks, and a rear Aether reactor. Geometry is authored from modular low-poly
-parts, bevelled only where highlights help the RTS silhouette, then joined by
-shared material for a low draw-call GLB. No textures or transparency.
+asymmetric Crownspike cannon, compact sensor head, load-bearing piston legs,
+twin boiler stacks, and a protected rear Aether reactor. The polish pass adds
+layered armor and visible load/recoil/pressure paths without changing the
+established Crownpiercer silhouette, footprint, origin, or runtime anchors.
+Geometry is authored from modular low-poly parts, bevelled only where
+highlights help the RTS silhouette, then joined by shared material for a low
+draw-call GLB. No textures or transparency.
 
 Coordinates use Blender X right / Y depth / Z up, with front at -Y. glTF
 exports Y-up; Blender -Y becomes Godot +Z, matching VisualTitan's facing and
@@ -173,26 +176,48 @@ def build_foot(sx, mats):
     side = "l" if sx < 0 else "r"
     x = 1.58 * sx
     # Wide heel-to-toe footprint establishes mass and keeps ground contact clear.
-    box(f"{ASSET}_sole_{side}", (1.62, 2.55, 0.30), (x, 0.05, 0.18), mats["dark_iron"], bevel=0.08)
+    box(f"{ASSET}_sole_{side}", (1.74, 2.55, 0.30), (x, 0.05, 0.18), mats["dark_iron"], bevel=0.08)
+    # A raised foot deck and front ram lip stop the sole reading as one flat box.
+    box(f"{ASSET}_foot_deck_{side}", (1.56, 2.16, 0.18), (x, 0.02, 0.40),
+        mats["steel"], bevel=0.055)
     trapezoid(f"{ASSET}_toe_{side}", (1.70, 1.45), (1.34, 1.15), 0.48,
               (x, -0.70, 0.55), mats["steel"], bevel=0.06)
+    box(f"{ASSET}_toe_ram_{side}", (1.42, 0.20, 0.27), (x, -1.20, 0.48),
+        mats["brass"], bevel=0.035)
     box(f"{ASSET}_heel_{side}", (1.42, 0.72, 0.62), (x, 0.92, 0.53), mats["dark_iron"], bevel=0.08)
+    box(f"{ASSET}_heel_cap_{side}", (1.22, 0.18, 0.48), (x, 1.29, 0.56),
+        mats["steel"], bevel=0.045)
     cylinder(f"{ASSET}_ankle_{side}", 0.56, 0.72, (x, 0.10, 0.92), mats["brass"], vertices=12)
     cylinder(f"{ASSET}_ankle_axle_{side}", 0.34, 1.48, (x, 0.02, 1.02), mats["dark_iron"],
              vertices=12, rot=(0.0, math.radians(90.0), 0.0))
+    # Fork and ram make the transfer from ankle axle into the sole explicit.
+    for ox in (-0.54, 0.54):
+        cylinder_between(
+            f"{ASSET}_ankle_fork_{side}_{int((ox + 0.6) * 10)}",
+            (x + ox, 0.38, 0.55), (x + ox, 0.20, 1.34),
+            0.11, mats["dark_iron"], vertices=8)
+    cylinder_between(f"{ASSET}_ankle_ram_{side}", (x, -0.52, 0.62),
+                     (x, -0.42, 1.46), 0.14, mats["copper"], vertices=10)
 
     # Reversed-knee industrial leg: large armor masses plus exposed piston pairs.
-    box(f"{ASSET}_shin_{side}", (0.94, 1.08, 2.05), (x, 0.20, 2.02), mats["dark_iron"],
+    box(f"{ASSET}_shin_{side}", (1.10, 1.08, 2.05), (x, 0.20, 2.02), mats["dark_iron"],
         rot=(math.radians(-5.0), 0.0, 0.0), bevel=0.10)
-    trapezoid(f"{ASSET}_shin_armor_{side}", (1.34, 0.54), (1.05, 0.42), 1.75,
+    trapezoid(f"{ASSET}_shin_armor_{side}", (1.44, 0.54), (1.15, 0.42), 1.75,
               (x, -0.57, 2.13), mats["steel"], bevel=0.07)
     cylinder(f"{ASSET}_knee_{side}", 0.58, 1.42, (x, -0.16, 3.08), mats["brass"],
              vertices=14, rot=(0.0, math.radians(90.0), 0.0))
     cylinder(f"{ASSET}_knee_cap_{side}", 0.37, 1.58, (x, -0.16, 3.08), mats["dark_iron"],
              vertices=12, rot=(0.0, math.radians(90.0), 0.0))
-    box(f"{ASSET}_thigh_{side}", (1.12, 1.26, 1.58), (x, 0.26, 3.88), mats["dark_iron"],
+    trapezoid(f"{ASSET}_knee_guard_{side}", (1.18, 0.36), (0.88, 0.26), 0.76,
+              (x, -0.73, 3.10), mats["steel"], bevel=0.055)
+    cylinder(f"{ASSET}_knee_outer_cap_{side}", 0.28, 0.16,
+             (x + sx * 0.78, -0.16, 3.08), mats["brass"], vertices=12,
+             rot=(0.0, math.radians(90.0), 0.0), bevel=0.02)
+    box(f"{ASSET}_thigh_{side}", (1.26, 1.26, 1.58), (x, 0.26, 3.88), mats["dark_iron"],
         rot=(math.radians(7.0), 0.0, 0.0), bevel=0.11)
-    box(f"{ASSET}_thigh_plate_{side}", (1.30, 0.36, 1.18), (x, -0.53, 3.92), mats["steel"], bevel=0.06)
+    box(f"{ASSET}_thigh_plate_{side}", (1.40, 0.36, 1.18), (x, -0.53, 3.92), mats["steel"], bevel=0.06)
+    box(f"{ASSET}_thigh_crown_{side}", (1.48, 1.12, 0.24), (x, 0.18, 4.58),
+        mats["bronze"], bevel=0.05)
 
     for offset in (-0.38, 0.38):
         cylinder_between(
@@ -211,6 +236,10 @@ def build_foot(sx, mats):
             mats["brass"],
             vertices=8,
         )
+    # Front diagonal actuators remain visible from the normal quarter camera.
+    cylinder_between(f"{ASSET}_front_leg_ram_{side}", (x - sx * 0.38, -0.50, 1.18),
+                     (x - sx * 0.48, -0.52, 2.78), 0.095,
+                     mats["copper"], vertices=8)
     # One readable rivet row per shin; enough for close-up scale without noise.
     for rx in (-0.38, 0.38):
         for rz in (1.66, 2.56):
@@ -227,8 +256,21 @@ def build_body(mats):
               (0.0, 0.12, 6.35), mats["dark_iron"], bevel=0.12)
     box(f"{ASSET}_torso_front_plate", (3.58, 0.34, 1.82), (0.0, -1.62, 6.48),
         mats["steel"], rot=(math.radians(-4.0), 0.0, 0.0), bevel=0.09)
+    # Layered glacis panels break the large front plane while preserving its
+    # broad, low read. The centre keel visually carries the governor's mass.
+    for sx in (-1.0, 1.0):
+        side = "l" if sx < 0 else "r"
+        box(f"{ASSET}_glacis_{side}", (1.06, 0.20, 0.72),
+            (sx * 1.35, -1.86, 7.02), mats["dark_iron"],
+            rot=(0.0, 0.0, math.radians(-sx * 7.0)), bevel=0.06)
+        box(f"{ASSET}_torso_side_rib_{side}", (0.24, 2.18, 1.62),
+            (sx * 2.22, 0.02, 6.44), mats["steel"], bevel=0.055)
+    trapezoid(f"{ASSET}_governor_keel", (1.32, 0.24), (0.92, 0.18), 0.88,
+              (0.0, -1.93, 5.76), mats["dark_iron"], bevel=0.055)
     box(f"{ASSET}_torso_belt", (4.42, 3.12, 0.27), (0.0, 0.04, 5.53), mats["brass"], bevel=0.035)
     box(f"{ASSET}_top_deck", (3.85, 2.82, 0.30), (0.0, 0.18, 7.67), mats["bronze"], bevel=0.06)
+    box(f"{ASSET}_top_deck_front_lip", (3.42, 0.22, 0.22), (0.0, -1.35, 7.76),
+        mats["brass"], bevel=0.035)
 
     # Chest Aether governor: a small, meaningful energy focal point.
     cylinder(f"{ASSET}_chest_core_housing", 0.78, 0.42, (0.0, -1.87, 6.62), mats["brass"],
@@ -237,6 +279,10 @@ def build_body(mats):
              vertices=16, rot=(math.radians(90.0), 0.0, 0.0), bevel=0.02)
     torus(f"{ASSET}_chest_core_ring", 0.70, 0.10, (0.0, -2.13, 6.62), mats["brass"],
           rot=(math.radians(90.0), 0.0, 0.0), major=16, minor=6)
+    for sx in (-1.0, 1.0):
+        cylinder_between(f"{ASSET}_governor_lock_{'l' if sx < 0 else 'r'}",
+                         (sx * 0.78, -2.00, 6.12), (sx * 0.78, -2.00, 7.10),
+                         0.085, mats["copper"], vertices=8)
     for x in (-1.46, 1.46):
         box(f"{ASSET}_chest_vent_{int(x * 10)}", (0.72, 0.16, 0.95), (x, -1.86, 6.42),
             mats["rust"], bevel=0.025)
@@ -250,6 +296,10 @@ def build_body(mats):
               (0.0, -0.74, 8.52), mats["dark_iron"], bevel=0.09)
     box(f"{ASSET}_sensor_brow", (1.18, 0.22, 0.20), (0.0, -1.32, 8.62), mats["brass"], bevel=0.025)
     box(f"{ASSET}_sensor_visor", (0.86, 0.12, 0.22), (0.0, -1.45, 8.48), mats["aether_glow"], bevel=0.025)
+    for sx in (-1.0, 1.0):
+        box(f"{ASSET}_sensor_cheek_{'l' if sx < 0 else 'r'}", (0.22, 0.72, 0.46),
+            (sx * 0.62, -0.74, 8.40), mats["steel"],
+            rot=(0.0, 0.0, math.radians(sx * 6.0)), bevel=0.045)
     cylinder(f"{ASSET}_rangefinder", 0.20, 0.52, (0.70, -0.72, 8.66), mats["copper"],
              vertices=10, rot=(0.0, math.radians(90.0), 0.0))
 
@@ -262,6 +312,27 @@ def build_cannon(mats):
     box(f"{ASSET}_cannon_shoulder", (1.66, 2.12, 1.58), (x, -0.02, 7.30), mats["steel"], bevel=0.13)
     box(f"{ASSET}_cannon_breech", (1.72, 2.20, 1.36), (x, -1.48, 7.26), mats["dark_iron"], bevel=0.12)
     box(f"{ASSET}_cannon_top_armor", (1.92, 1.58, 0.30), (x, -1.42, 8.02), mats["bronze"], bevel=0.05)
+    # Rear counterweight, trunnion collars, and a lower recoil cradle explain
+    # how the torso carries the long barrel instead of treating it as a tube.
+    box(f"{ASSET}_cannon_counterweight", (1.44, 0.70, 1.12), (x, 0.86, 7.22),
+        mats["dark_iron"], bevel=0.10)
+    box(f"{ASSET}_cannon_counterweight_cap", (1.58, 0.18, 0.82), (x, 1.22, 7.22),
+        mats["steel"], bevel=0.045)
+    torus(f"{ASSET}_cannon_outer_trunnion", 0.71, 0.105, (-3.60, 0.0, 7.30),
+          mats["brass"], rot=(0.0, math.radians(90.0), 0.0), major=16, minor=6)
+    for rx in (-0.56, 0.56):
+        box(f"{ASSET}_recoil_cradle_{int((rx + 0.6) * 10)}", (0.18, 3.52, 0.22),
+            (x + rx, -2.48, 6.68), mats["steel"], bevel=0.025)
+        cylinder_between(f"{ASSET}_recoil_ram_{int((rx + 0.6) * 10)}",
+                         (x + rx, -0.72, 6.86), (x + rx, -3.92, 6.86),
+                         0.105, mats["copper"], vertices=8)
+    for y in (-1.05, -2.42, -3.80):
+        box(f"{ASSET}_cradle_crossbar_{int(abs(y) * 100)}", (1.42, 0.16, 0.18),
+            (x, y, 6.68), mats["brass"], bevel=0.025)
+    cylinder_between(f"{ASSET}_cannon_mount_strut_front", (-1.82, -0.72, 6.18),
+                     (-2.40, -0.22, 6.72), 0.14, mats["brass"], vertices=10)
+    cylinder_between(f"{ASSET}_cannon_mount_strut_rear", (-1.82, 0.72, 6.18),
+                     (-2.40, 0.36, 6.72), 0.14, mats["dark_iron"], vertices=10)
 
     cylinder(f"{ASSET}_cannon_shroud", 0.66, 2.55, (x, -3.34, 7.26), mats["steel"],
              vertices=16, rot=(math.radians(90.0), 0.0, 0.0), bevel=0.05)
@@ -284,6 +355,8 @@ def build_cannon(mats):
     for y in (-2.72, -3.45, -4.18):
         box(f"{ASSET}_cannon_fin_{int(abs(y) * 100)}", (1.76, 0.12, 1.02),
             (x, y, 7.28), mats["dark_iron"], bevel=0.025)
+    cylinder(f"{ASSET}_breech_lock", 0.82, 0.24, (x, -2.20, 7.26), mats["brass"],
+             vertices=16, rot=(math.radians(90.0), 0.0, 0.0), bevel=0.025)
 
     # Deliberate energy route: rear reactor -> chest governor -> breech -> muzzle.
     cylinder_between(f"{ASSET}_weapon_feed_a", (-0.42, -1.82, 6.72), (-1.38, -1.76, 7.30),
@@ -300,6 +373,8 @@ def build_brace_arm(mats):
     cylinder(f"{ASSET}_brace_shoulder_axle", 0.76, 1.28, (2.20, 0.02, 7.28), mats["brass"],
              vertices=16, rot=(0.0, math.radians(90.0), 0.0))
     box(f"{ASSET}_brace_shoulder", (1.72, 2.04, 1.68), (x, 0.02, 7.25), mats["steel"], bevel=0.14)
+    box(f"{ASSET}_brace_shoulder_crown", (1.54, 1.62, 0.28), (x, -0.02, 8.10),
+        mats["bronze"], bevel=0.055)
     box(f"{ASSET}_brace_upper", (1.22, 1.34, 1.48), (3.15, 0.14, 6.12), mats["dark_iron"],
         rot=(0.0, math.radians(-4.0), math.radians(-8.0)), bevel=0.11)
     cylinder(f"{ASSET}_brace_elbow", 0.48, 1.35, (3.28, -0.02, 5.31), mats["brass"],
@@ -307,6 +382,8 @@ def build_brace_arm(mats):
     trapezoid(f"{ASSET}_brace_gauntlet", (1.46, 1.70), (1.18, 1.40), 1.78,
               (3.36, -0.05, 4.53), mats["dark_iron"], bevel=0.11)
     box(f"{ASSET}_brace_face", (1.24, 0.28, 1.26), (3.36, -0.90, 4.52), mats["steel"], bevel=0.06)
+    box(f"{ASSET}_brace_press_plate", (0.78, 0.16, 0.82), (3.36, -1.08, 4.52),
+        mats["bronze"], bevel=0.04)
     for dx in (-0.40, 0.0, 0.40):
         box(f"{ASSET}_brace_tooth_{int((dx + 0.5) * 100)}", (0.28, 0.72, 0.35),
             (3.36 + dx, -0.50, 3.53), mats["bronze"], bevel=0.04)
@@ -314,6 +391,13 @@ def build_brace_arm(mats):
                      0.13, mats["copper"], vertices=8)
     cylinder_between(f"{ASSET}_brace_piston_inner", (2.78, 0.70, 6.75), (2.92, 0.66, 5.22),
                      0.11, mats["brass"], vertices=8)
+    cylinder_between(f"{ASSET}_brace_shock", (3.52, -0.56, 6.72), (3.58, -0.48, 5.26),
+                     0.14, mats["copper"], vertices=10)
+    for sx in (-1.0, 1.0):
+        box(f"{ASSET}_brace_side_rail_{'l' if sx < 0 else 'r'}", (0.16, 1.24, 0.20),
+            (3.36 + sx * 0.60, -0.08, 4.62), mats["brass"], bevel=0.025)
+    box(f"{ASSET}_brace_rear_block", (1.14, 0.52, 0.82), (3.28, 0.78, 5.62),
+        mats["dark_iron"], bevel=0.075)
 
 
 def build_reactor_and_exhaust(mats):
@@ -321,6 +405,10 @@ def build_reactor_and_exhaust(mats):
     for sx in (-1.18, 1.18):
         side = "l" if sx < 0 else "r"
         cylinder(f"{ASSET}_rear_boiler_{side}", 0.66, 2.45, (sx, 1.38, 7.54), mats["copper"], vertices=14)
+        cylinder(f"{ASSET}_boiler_lower_cap_{side}", 0.74, 0.22, (sx, 1.38, 6.31),
+                 mats["dark_iron"], vertices=14, bevel=0.025)
+        cylinder(f"{ASSET}_boiler_upper_cap_{side}", 0.74, 0.22, (sx, 1.38, 8.77),
+                 mats["bronze"], vertices=14, bevel=0.025)
         for z in (6.55, 7.55, 8.54):
             torus(f"{ASSET}_boiler_band_{side}_{int(z * 100)}", 0.68, 0.085, (sx, 1.38, z),
                   mats["brass"], major=14, minor=6)
@@ -330,6 +418,9 @@ def build_reactor_and_exhaust(mats):
         cylinder(f"{ASSET}_stack_heat_{side}", 0.34, 0.08, (sx, 1.40, 11.38), mats["furnace_glow"], vertices=12,
                  bevel=0.01)
         anchor(f"exhaust_{side}", (sx, 1.40, 11.45))
+        cylinder_between(f"{ASSET}_stack_stay_{side}", (sx, 1.38, 9.18),
+                         (sx * 1.72, 0.78, 8.20), 0.09,
+                         mats["brass"], vertices=8)
 
     # Rear reactor is visible only from the back, preventing a front glow overload.
     cylinder(f"{ASSET}_reactor_housing", 1.05, 0.74, (0.0, 2.03, 7.12), mats["dark_iron"],
@@ -338,6 +429,24 @@ def build_reactor_and_exhaust(mats):
              vertices=16, rot=(math.radians(90.0), 0.0, 0.0), bevel=0.03)
     torus(f"{ASSET}_reactor_ring", 0.94, 0.13, (0.0, 2.47, 7.12), mats["brass"],
           rot=(math.radians(90.0), 0.0, 0.0), major=18, minor=6)
+    # Four bolted cage rails protect the exposed core and create a readable
+    # rear depth stack: armor frame -> containment ring -> luminous core.
+    for sx in (-1.0, 1.0):
+        side = "l" if sx < 0 else "r"
+        box(f"{ASSET}_reactor_cage_vertical_{side}", (0.18, 0.18, 1.86),
+            (sx * 1.16, 2.30, 7.12), mats["steel"], bevel=0.035)
+        cylinder_between(f"{ASSET}_lower_pressure_pipe_{side}",
+                         (sx * 1.18, 1.78, 6.42), (sx * 1.70, 1.04, 5.32),
+                         0.12, mats["copper"], vertices=8)
+    for z in (6.16, 8.08):
+        box(f"{ASSET}_reactor_cage_cross_{int(z * 100)}", (2.42, 0.18, 0.18),
+            (0.0, 2.30, z), mats["brass"], bevel=0.035)
+    box(f"{ASSET}_rear_manifold", (2.18, 0.42, 0.46), (0.0, 1.73, 5.48),
+        mats["dark_iron"], bevel=0.07)
+    for sx in (-0.72, 0.72):
+        cylinder(f"{ASSET}_manifold_valve_{int(sx * 100)}", 0.20, 0.18,
+                 (sx, 1.96, 5.48), mats["brass"], vertices=10,
+                 rot=(math.radians(90.0), 0.0, 0.0), bevel=0.015)
     anchor("reactor_anchor", (0.0, 2.52, 7.12))
 
     # Copper service pipes and a back armor chevron make the rear intentional.
@@ -404,6 +513,7 @@ def main():
     scene["forward_axis"] = "-Y"
     scene["up_axis"] = "+Z"
     scene["texture_count"] = 0
+    scene["visual_pass"] = "reference_informed_polish"
 
     mats = palette("gearforge")
     build_foot(-1.0, mats)

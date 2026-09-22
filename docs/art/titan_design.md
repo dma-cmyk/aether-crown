@@ -107,7 +107,22 @@ orange 発光は twin exhaust 口の熱に限定。cyan と orange を機能で�
 
 ## Production result
 
-- Blender polygons 5,228 / triangles 10,392 / mesh 8 / material 8 / texture 0
+- Reference-Informed Visual Polish後: Blender polygons 7,670 / triangles 14,964 /
+  mesh 8 / material 8 / texture 0
 - Principled BSDF 共有 palette のみ。補助ツール未使用。
-- close / mid / strategic / units / scene / back / silhouette の7構図を Godot Forward Plus で確認。
+- close / mid / side / strategic / units / scene / back / silhouette の8構図をGodot Forward Plusで確認。
 - mid と strategic で主砲、twin stack、脚が残り、歩兵との scale 差が成立。
+
+## Reference-Informed Visual Polish
+
+2026-09-22に指定の2参考画像を実見し、形状はコピーせず、重量を支える関節、装甲の段差、
+武器mount、前後左右の機能密度というproduction principleだけを抽出した。
+
+- legs / feet: raised deck、toe ram、heel cap、ankle fork、front ram、knee guard、thigh crownを追加。
+- torso: side rib、glacis、governor keel、top-deck lipで大平面を分節。
+- Crownspike: counterweight、outer trunnion、lower recoil cradle / ram、crossbar、mount strutを追加。
+- right brace: shoulder crown、shock、side rail、press plate、rear support blockで支持機構を明示。
+- back: boiler cap / stack stay、reactor cage、pressure manifold、lower pressure pipeを追加。
+
+identity、front方向、origin、scale、4 runtime anchorは不変。boundsは幅のみ
+7.761m→7.772m（+0.011m）、depth 9.645m / height 11.390mは不変。

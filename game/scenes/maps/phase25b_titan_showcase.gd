@@ -3,6 +3,7 @@ extends Node3D
 ## keeps gameplay/balance untouched, and can capture the required review set.
 ## Capture:
 ## godot --path game res://scenes/maps/phase25b_titan_showcase.tscn -- --capture-phase25b
+## godot --path game res://scenes/maps/phase25b_titan_showcase.tscn -- --capture-titan-polish
 
 const TitanGLB: PackedScene = preload("res://assets/models/gearforge_titan.glb")
 const CivicGLB: PackedScene = preload("res://assets/models/gearforge_civic_core.glb")
@@ -11,6 +12,7 @@ const InfantryScene: PackedScene = preload("res://scenes/units/infantry.tscn")
 const InfantryDef: UnitDefinition = preload("res://resources/units/gf_infantry.tres")
 
 const SCREENSHOT_DIR := "res://../docs/screenshots/phase25b"
+const POLISH_SCREENSHOT_DIR := "res://../docs/screenshots/titan_polish"
 
 var titan: Node3D
 var _fps_min := 9999
@@ -22,6 +24,7 @@ var _benchmark_active := false
 var _benchmark_reported := false
 var _silhouette_material: StandardMaterial3D
 var _mesh_overrides: Dictionary = {}
+var _screenshot_dir := SCREENSHOT_DIR
 
 @onready var rig: Node3D = $CameraRig
 @onready var readout: Label = $HUD/Readout
@@ -38,7 +41,11 @@ func _ready() -> void:
 	print("PHASE25B_SHOWCASE_READY titan=%s meshes=%d units=%d" % [
 		str(titan != null), _all_meshes(titan).size(), $UnitsRoot.get_child_count()
 	])
-	if OS.get_cmdline_user_args().has("--capture-phase25b"):
+	if OS.get_cmdline_user_args().has("--capture-titan-polish"):
+		_screenshot_dir = POLISH_SCREENSHOT_DIR
+		_capture_active = true
+		call_deferred("_capture_set")
+	elif OS.get_cmdline_user_args().has("--capture-phase25b"):
 		_capture_active = true
 		call_deferred("_capture_set")
 	elif OS.get_cmdline_user_args().has("--benchmark-phase25b"):
@@ -215,7 +222,7 @@ func _capture(name_text: String) -> void:
 	for i in range(12):
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
-	var path := ProjectSettings.globalize_path(SCREENSHOT_DIR.path_join(name_text + ".png"))
+	var path := ProjectSettings.globalize_path(_screenshot_dir.path_join(name_text + ".png"))
 	var error := get_viewport().get_texture().get_image().save_png(path)
 	if error != OK:
 		push_error("CAPTURE_FAILED %s error=%d" % [path, error])
@@ -224,7 +231,7 @@ func _capture(name_text: String) -> void:
 
 
 func _capture_set() -> void:
-	var absolute_dir := ProjectSettings.globalize_path(SCREENSHOT_DIR)
+	var absolute_dir := ProjectSettings.globalize_path(_screenshot_dir)
 	DirAccess.make_dir_recursive_absolute(absolute_dir)
 	DisplayServer.window_set_size(Vector2i(1920, 1080))
 	# Keep the review set art-only. FPS is recorded by the separate benchmark,
@@ -239,6 +246,9 @@ func _capture_set() -> void:
 
 	_set_view(25.0, Vector3(0, 0, 0), -22.0)
 	await _capture("titan_mid")
+
+	_set_view(22.0, Vector3(0, 0, 0), -86.0)
+	await _capture("titan_side_view")
 
 	_set_view(43.0, Vector3(0, 0, 0), -22.0)
 	await _capture("titan_zoomed_out")
@@ -264,5 +274,5 @@ func _capture_set() -> void:
 	var fps_avg := 0
 	if _fps_samples > 0:
 		fps_avg = _fps_sum / _fps_samples
-	print("PHASE25B_CAPTURE_DONE shots=7 fps_min=%d fps_avg=%d" % [_fps_min, fps_avg])
+	print("PHASE25B_CAPTURE_DONE shots=8 fps_min=%d fps_avg=%d" % [_fps_min, fps_avg])
 	get_tree().quit(0)

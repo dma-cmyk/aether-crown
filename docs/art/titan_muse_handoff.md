@@ -1,20 +1,23 @@
 # Gearforge Titan — Muse Spark Handoff
 
 最終更新: 2026-09-22
-対象: Phase 2.5B / `gearforge_titan` / **Crownpiercer**
+対象: Phase 2.5B / 2.5B.1 / Reference-Informed Visual Polish / `gearforge_titan` / **Crownpiercer**
 環境: EndeavourOS / Blender 5.2.2 LTS / Godot 4.7.2 / Intel Iris Xe
 
 ## 現在の到達点
 
-Production LOD0 の主要デザインと生成パイプラインは完了。
+Production LOD0 の Reference-Informed Visual Polish と生成パイプライン更新は完了。
 
 - 採用案: Variant B 「Aether Siege Engine」
 - 固有名: Crownpiercer
 - 主要 silhouette: 非対称 Crownspike 主砲 / 低い sensor head / 幅広 torso / 双煙突 / 分離脚
 - 完了: proportions, main weapon, chest governor, rear reactor, boiler, pipes, exhaust, armor, material 割当
+- 完了: foot / ankle / knee / thigh の荷重経路、torso armor layering、Crownspike recoil mount、
+  right brace support、rear reactor cage の polish
 - 完了: Blender source 保存、GLB export、Godot asset 配置・import
-- 完了: Godot showcase、7構図撮影、Iris Xe benchmark、全主要 regression
-- 未確定: アニメーション用 rig、LOD1/2、独自 texture / decal
+- 完了: Godot showcase、polish後8構図撮影、Phase 2.5B / 2.5B.1 relevant regression
+- 未確定: アニメーション用 rig、LOD2、独自 texture / decal
+- 要更新: 既存LOD1はPhase 2.5B.1時点の形状。anchor互換で動作するが、polish後LOD0に合わせた再生成が必要
 
 ## 正本と再生成
 
@@ -34,17 +37,21 @@ Production LOD0 の主要デザインと生成パイプラインは完了。
 
 | 項目 | 現在値 |
 |---|---:|
-| bounds | 7.761m W × 9.645m D × 11.390m H |
-| Blender vertices | 5,408 |
-| Blender polygons | 5,228 |
-| export triangles | 10,392 |
+| bounds | 7.772m W × 9.645m D × 11.390m H |
+| Blender vertices | 7,820 |
+| Blender polygons | 7,670 |
+| export triangles | 14,964 |
 | mesh | 8 |
 | material | 8 |
 | texture | 0 |
-| GLB | 719,656 bytes |
+| GLB | 1,047,796 bytes |
 
-`polygons` は指定目安 2,500–6,000 内。triangles はリポジトリの巨大ユニット目安
-8,000–25,000 tris 内。造形部品は material 単位に結合済みで、GLB の mesh 数は8。
+Phase 2.5B比で polygonsは+2,442、trianglesは+4,572。追加は荷重・反動・圧力経路を
+説明するgeometryに限定した。trianglesはリポジトリの巨大ユニット目安8,000–25,000内。
+造形部品はmaterial単位に結合済みで、GLBのmesh数は8のまま。
+
+旧bounds 7.761 × 9.645 × 11.390mに対し、幅のみ+0.011m（+0.14%）。depth / height、
+原点、scale 1.0、front -Yは不変で、runtime上の寸法変更として扱う必要はない。
 
 ## Component 一覧
 
@@ -58,19 +65,22 @@ Production LOD0 の主要デザインと生成パイプラインは完了。
 
 ### Secondary forms
 
-- shin / thigh armor, knee axle, external copper/brass pistons
+- raised foot deck / toe ram / heel cap / ankle fork、layered shin / thigh armor、
+  knee guard / axle / external copper/brass pistons
 - compact sensor head, cyan visor, rangefinder
 - chest Aether governor, brass containment ring, front vents
-- cannon breech / shroud / barrel / cooling rails / muzzle lens
+- cannon breech / counterweight / trunnion / recoil cradle / recoil rams / mount struts /
+  shroud / barrel / cooling rails / muzzle lens
+- right brace shoulder crown / shock / side rail / press plate / rear support block
 - rear twin copper boilers, pressure bands, twin exhaust stacks
-- rear Aether reactor, copper feed pipes, cyan back chevrons
+- rear Aether reactor, protective cage, pressure manifold, copper feed pipes, cyan back chevrons
 - deck valves, stack collars, furnace-lit exhaust mouths
 
 ## Proportions
 
 - 全高: 11.39m。脚元から hip まで約4.9m、torso 上端約7.7m。
 - sensor head 上端: 約9.0m。煙突が11.4mまで伸び、背面の crown silhouette を作る。
-- 肩幅: 約7.7m。建物と同程度の高さでも、脚の分離と肩の非対称で移動兵器と読ませる。
+- 最大幅: 7.772m。建物と同程度の高さでも、脚の分離と肩の非対称で移動兵器と読ませる。
 - 主砲先端: front に約6.9m。本体奥行を超える長さを weapon identity に使う。
 - 頭部は torso 幅の約30%に抑え、ヒーロー人型ではなく重工業機械として読ませる。
 
@@ -97,6 +107,8 @@ orange 発光は exhaust 口だけで、Aether と燃焼熱を色で分離して
 
 ## Runtime anchor
 
+Polish passで4 anchorの名前・座標・意味はすべて変更なし。
+
 | node | Blender 位置 | 用途 |
 |---|---|---|
 | `muzzle` | (-2.72, -6.92, 7.26) | 現行 TitanShell / muzzle FX |
@@ -109,9 +121,10 @@ front は Blender `-Y`。Godot では GLB import 後 `+Z` を向き、現行 `Vi
 
 ## Optimization / LOD notes
 
-- LOD0 は material ごとに8 mesh。透過なし、texture memory 0。
+- LOD0 は material ごとに8 mesh / 14,964 tris。透過なし、texture memory 0。
 - シルエットと material boundary を変えない篤囲で、内部の隠れ面は将来削除可。
-- LOD1 目標: 4–6 mesh / 4,500–6,000 tris。bevel、rivet、deck valve、vent slit、torus minor segment を削減。
+- 現行LOD1は5 mesh / 4,500 trisでruntime互換・anchor parityあり。ただしpolish前の造形なので、
+  foot deck / knee guard / torso layering / recoil cradle / brace crown / reactor cageを簡略化して再生成する。
 - LOD2 目標: 3–4 mesh / 1,800–2,500 tris。主砲・脚・torso・双煙突・reactor glow だけ残す。
 - LOD でも muzzle / exhaust / reactor anchor 名と位置は不変とする。
 - rig 化する場合は material 結合前の生成部品単位を script から再構築し、
@@ -127,20 +140,26 @@ front は Blender `-Y`。Godot では GLB import 後 `+Z` を向き、現行 `Vi
 - 接地、scale 1.0、正面、`muzzle` が Godot 内で保持される。
 - Iris Xe の Titan showcase で sustained 30 FPS 未満にならない。
 
-実測は 1920×1008 / Forward Plus で average 41 FPS / minimum 39 FPS。sustained 30 FPS 未満なし。
-撮影結果は `docs/screenshots/phase25b/` の7枚。`phase25b_test` と既存の全主要回帰は PASS、
-ERROR 0 / SCRIPT ERROR 0。
+Polish撮影結果は `docs/screenshots/titan_polish/` の8枚。close / mid / side / strategic /
+units / scene / back / silhouetteをGodot Forward Plus / Intel Iris Xeで確認する。
+15秒benchmark（warmup 3秒）は minimum 39 / average 43 FPS。sustained 30 FPS未満なし。
+`cli_smoke` / `phase25b_test` / `phase25b1_test` / `visual_slice_test`とshowcase起動はPASS、
+Godot ERROR 0 / SCRIPT ERROR 0。
 
 ## 次に行う場合の順序
 
-1. Godot quarter-view の close / mid / strategic / back を見て silhouette のみ判定。
-2. 読みに問題がある場合は `make_gearforge_titan.py` の主要寸法だけ修正。
-3. `.blend` を直接手修正したら、同じ変更を生成 script にも戻す。
-4. LOD1/2 は本 asset 受け入れ後。Airship / Building Set の量産は開始しない。
+1. `make_gearforge_titan_lod1.py`をpolish後LOD0へ追従させる。LOD0の全detailを移植せず、
+   foot / knee / recoil cradle / brace / reactor cageの読みを優先する。
+2. 32m / 34mのLOD切替で形状popを比較し、LOD1の4 anchor座標を維持する。
+3. rig化時はankle fork / knee axle / thigh piston / cannon cradleを可動階層へ分ける。
+4. LOD2、歩行・反動animation、decalはLOD1再受入れ後に判断する。
 
 ## Known risks
 
-- LOD0 は範囲内だが、bevel と ring のため triangles は10,392。単体性能確認が必要。
+- LOD0は14,964 tris。巨大ユニット目安内だが、複数体benchmarkはLOD1再生成後に再確認する。
 - モデルは現在 static。歩行の重量感は proportions / piston で示し、animation は後続。
-- `VisualTitan` の collision は旧寸法（radius 2.2m / height 9m）。showcase には影響しないが、
-  gameplay では新幅約7.7mに合わせた別途判定が必要。今 Phase では gameplay balance を変えない。
+- `VisualTitan` collisionはPhase 2.5B.1のradius 3.0m / height 9mを維持。sole外端約2.45mに
+  infantry半径0.35mを加えても2.80mで収まり、数値上の変更は不要。relevant testで再確認する。
+- LOD1はpolish前モデルのため、現状でも機能上は切替可能だがclose-to-farのdetail popが残る。
+- Blender exportは任意MeshOptimizer library不在のメッセージを出すが、Draco検出、GLB生成、
+  Godot importと全validatorは成功している。今回のasset固有障害ではない。
