@@ -141,4 +141,4 @@ Visual Sliceクラッシュなし / 既存Match遊戯可 / FPS測定可 — す�
 
 ## commit hash
 
-COMMIT: 5aecdd0
+COMMIT: 9e59f04 (feat: phase 1.75 visual vertical slice)
