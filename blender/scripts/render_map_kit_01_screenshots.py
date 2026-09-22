@@ -101,12 +101,13 @@ def setup_lighting_and_ground():
     rim.data.color = (0.75, 0.88, 1.0)
     rim.rotation_euler = (math.radians(-45.0), math.radians(-20.0), math.radians(140.0))
 
-    # Soft Fill Light
-    bpy.ops.object.light_add(type="SUN", location=(-30.0, -30.0, 30.0))
+    # Cool blue fill light
+    bpy.ops.object.light_add(type="SUN", location=(-20.0, 20.0, 30.0))
     fill = bpy.context.active_object
-    fill.name = "Fill_Sun"
-    fill.data.energy = 2.0
-    fill.data.color = (0.85, 0.85, 0.88)
+    fill.name = "Sky_Fill"
+    fill_light = fill.data
+    fill_light.energy = 0.45
+    fill_light.color = (0.50, 0.72, 1.0)
     fill.rotation_euler = (math.radians(35.0), math.radians(-25.0), math.radians(35.0))
 
     # Vast terrain floor (Canyon valley floor at Z=0.0)
@@ -117,21 +118,26 @@ def setup_lighting_and_ground():
     mat_ground.use_nodes = True
     bsdf = mat_ground.node_tree.nodes.get("Principled BSDF")
     if bsdf:
-        bsdf.inputs["Base Color"].default_value = (0.18, 0.19, 0.22, 1.0)
-        bsdf.inputs["Roughness"].default_value = 0.90
-        bsdf.inputs["Metallic"].default_value = 0.05
+        # Dark rugged industrial bedrock tone
+        bsdf.inputs["Base Color"].default_value = (0.11, 0.12, 0.14, 1.0)
+        bsdf.inputs["Roughness"].default_value = 0.92
+        bsdf.inputs["Metallic"].default_value = 0.08
     ground.data.materials.append(mat_ground)
 
 
 def assemble_battlefield_diorama():
-    """Build an interconnected modular map scene demonstrating bridge, cliffs, fortress, and units."""
-    print("Assembling battlefield diorama...")
+    """Build an interconnected modular map scene demonstrating bridge, trench, cliffs, fortress, and units."""
+    print("Assembling battlefield diorama with industrial trench, fortress gate, and bridge...")
 
-    # 1. Canyon Crossing Bridge
-    # Spans from Y = -16.0 (South Cliff Plateau) to Y = +16.0 (North Fortress Plateau)
+    # 1. Industrial Trench (Excavated military moat under the bridge along X axis, Y = -6 to +6)
+    import_glb("game/assets/models/map/gearforge_trench_industrial.glb", loc=(-8.0, 0.0, 0.0), rot=(0, 0, math.radians(90.0)))
+    import_glb("game/assets/models/map/gearforge_trench_industrial.glb", loc=( 8.0, 0.0, 0.0), rot=(0, 0, math.radians(90.0)))
+
+    # 2. Canyon Crossing Bridge
+    # Spans from Y = -16.0 (South Cliff Plateau) to Y = +16.0 (North Fortress Plateau) over the trench
     import_glb("game/assets/models/map/gearforge_bridge_heavy.glb", loc=(0.0, 0.0, 0.0))
 
-    # 2. South Plateau & Cliffs (Y <= -16.0, Elevation Z = 8.0m)
+    # 3. South Plateau & Cliffs (Y <= -16.0, Elevation Z = 8.0m)
     # Cliff face rim along Y = -16.0
     import_glb("game/assets/models/map/gearforge_cliff_straight.glb", loc=(-8.0, -18.0, 0.0), rot=(0, 0, 0))
     import_glb("game/assets/models/map/gearforge_cliff_straight.glb", loc=( 8.0, -18.0, 0.0), rot=(0, 0, 0))
@@ -144,13 +150,13 @@ def assemble_battlefield_diorama():
     import_glb("game/assets/models/map/gearforge_road_barrier.glb", loc=(-7.0, -24.0, 8.0))
     import_glb("game/assets/models/map/gearforge_road_barrier.glb", loc=( 7.0, -24.0, 8.0))
 
-    # 3. North Fortress Perimeter & Cliffs (Y >= 16.0, Elevation Z = 8.0m)
+    # 4. North Fortress Perimeter & Cliffs (Y >= 16.0, Elevation Z = 8.0m)
     # North cliff rim supporting the bridge north abutment
     import_glb("game/assets/models/map/gearforge_cliff_straight.glb", loc=(-10.0, 18.0, 0.0), rot=(0, 0, math.radians(180.0)))
     import_glb("game/assets/models/map/gearforge_cliff_straight.glb", loc=( 10.0, 18.0, 0.0), rot=(0, 0, math.radians(180.0)))
     import_glb("game/assets/models/map/gearforge_cliff_corner_out.glb", loc=(-22.0, 18.0, 0.0), rot=(0, 0, math.radians(90.0)))
 
-    # Fortress Line (Y = 28.0m, Z = 8.0m)
+    # Fortress Defensive Line (Y = 28.0m, Z = 8.0m)
     # Massive Fortress Gate at center (bridge leads directly toward this gate)
     import_glb("game/assets/models/map/gearforge_fortress_gate.glb", loc=(0.0, 28.0, 8.0))
     # Right Curtain Wall + Corner + Tower
@@ -165,7 +171,7 @@ def assemble_battlefield_diorama():
     import_glb("game/assets/models/map/gearforge_industrial_pipe_straight.glb", loc=(-14.0, 0.0, 0.0))
     import_glb("game/assets/models/map/gearforge_industrial_pipe_straight.glb", loc=(-14.0, 16.0, 0.0))
 
-    # 4. Units for Scale Hierarchy (Titan, Quad-Walker, Biped Walker)
+    # 5. Units for Scale Hierarchy (Titan, Quad-Walker, Biped Walker)
     # Titan Crownpiercer (11.4m) advancing across the bridge northward
     import_glb("game/assets/models/gearforge_titan.glb", loc=(0.0, -4.0, 8.0), rot=(0, 0, 0))
 
@@ -199,77 +205,77 @@ def render_all_shots():
     scene.camera = cam_obj
 
     shots = [
-        # 1. Overview
+        # 1. Overview (Panoramic Battlefield Diorama)
         {
             "filename": "01_map_kit_overview.png",
             "pos": (38.0, -48.0, 38.0),
             "target": (0.0, 4.0, 10.0),
             "lens": 42,
-            "desc": "Panoramic battlefield diorama overview showing bridge, canyon, fortress, and Titan",
+            "desc": "Panoramic battlefield diorama overview showing bridge, industrial trench, fortress gate, and Titan",
         },
-        # 2. Bridge Isometric
+        # 2. Gate Front (Fortress Gate Superstructure)
         {
-            "filename": "02_bridge_isometric.png",
-            "pos": (26.0, -22.0, 24.0),
-            "target": (0.0, -2.0, 9.0),
-            "lens": 50,
-            "desc": "Tactical isometric view of Heavy Aether Bridge crossing canyon",
+            "filename": "02_fortress_gate_front.png",
+            "pos": (-12.0, 2.0, 18.0),
+            "target": (0.0, 28.0, 18.0),
+            "lens": 30,
+            "desc": "Front three-quarter view of 21m Fortress Gate showing sloped buttresses, gunports, searchlights, and cupola",
         },
-        # 3. Bridge Side View
+        # 3. Bridge Roadway (Looking down the 14m Deck)
         {
-            "filename": "03_bridge_side.png",
-            "pos": (45.0, 0.0, 12.0),
-            "target": (0.0, 0.0, 8.0),
-            "lens": 55,
-            "desc": "Side profile of bridge showing stone piers, steel arch trusses, and pipes",
+            "filename": "03_bridge_roadway.png",
+            "pos": (10.0, -22.0, 16.0),
+            "target": (0.0, 4.0, 11.0),
+            "lens": 36,
+            "desc": "Looking down bridge deck showing glowing Aether power rails, catwalks, and advancing Titan",
         },
-        # 4. Bridge Titan Scale
+        # 4. Bridge Side Profile (Under-bridge Lattice Arch & Pipes)
         {
-            "filename": "04_bridge_titan_scale.png",
-            "pos": (16.0, -24.0, 16.0),
+            "filename": "04_bridge_side.png",
+            "pos": (46.0, 0.0, 10.0),
+            "target": (0.0, 0.0, 6.5),
+            "lens": 52,
+            "desc": "Side profile of bridge showing under-bridge arch truss, pier machinery, and conduit lines over trench",
+        },
+        # 5. Trench & Ravine Chokepoint (Excavated Moat beneath Bridge)
+        {
+            "filename": "05_trench_ravine.png",
+            "pos": (-22.0, -14.0, 14.0),
+            "target": (-4.0, 0.0, 4.0),
+            "lens": 42,
+            "desc": "Close view of industrial trench under bridge showing steel sheet piles, pipelines, and Aether waterway",
+        },
+        # 6. Scale Hierarchy (Titan, Quad-Walker, Light Walker)
+        {
+            "filename": "06_scale_hierarchy.png",
+            "pos": (16.0, -22.0, 16.0),
             "target": (0.0, -4.0, 12.0),
             "lens": 48,
-            "desc": "Close scale comparison of 11.4m Titan and Walker traversing 14m bridge roadway",
+            "desc": "Scale hierarchy comparison of 11.4m Titan Crownpiercer, 5.2m Quad-Walker, and 4.5m Walker",
         },
-        # 5. Cliff Modules
+        # 7. Fortress Approach (Dramatically approaching the Fortress Gate)
         {
-            "filename": "05_cliff_modules.png",
-            "pos": (-36.0, -38.0, 24.0),
-            "target": (-14.0, -10.0, 6.0),
-            "lens": 42,
-            "desc": "Modular cliff set with ramp, straight cliffs, retaining walls and pipelines",
-        },
-        # 6. Fortress Gate
-        {
-            "filename": "06_fortress_gate.png",
-            "pos": (0.0, -18.0, 16.0),
-            "target": (0.0, 28.0, 14.0),
-            "lens": 35,
-            "desc": "Front view of Fortress Gate showing 10m x 12.5m Titan-capable opening and 16m superstructure",
-        },
-        # 7. Fortress Wall Set
-        {
-            "filename": "07_fortress_wall_set.png",
-            "pos": (28.0, 2.0, 18.0),
-            "target": (14.0, 28.0, 11.0),
+            "filename": "07_fortress_approach.png",
+            "pos": (-12.0, -6.0, 11.0),
+            "target": (0.0, 24.0, 14.0),
             "lens": 36,
-            "desc": "Curtain wall modules, corner wall, watchtower, and defensive bastion line",
+            "desc": "Low tactical angle crossing bridge toward the towering 21m fortress gatehouse",
         },
-        # 8. RTS Distance Camera
+        # 8. RTS Tactical Distance (Camera Distance 65m+)
         {
             "filename": "08_rts_distance.png",
-            "pos": (42.0, -52.0, 52.0),
+            "pos": (44.0, -54.0, 54.0),
             "target": (0.0, 6.0, 8.0),
             "lens": 38,
-            "desc": "Typical RTS camera gameplay distance readability check",
+            "desc": "Standard RTS gameplay distance readability check with clear silhouette hierarchy",
         },
-        # 9. Road & Props Detail
+        # 9. Industrial Detail (Catwalks, Retaining Walls, Barriers, Pipes)
         {
             "filename": "09_road_and_props_detail.png",
-            "pos": (14.0, -32.0, 13.0),
-            "target": (0.0, -24.0, 8.5),
-            "lens": 60,
-            "desc": "Detail closeup of heavy road slabs, crash barriers, beacons, and pipe gantry",
+            "pos": (16.0, -28.0, 14.0),
+            "target": (-2.0, -20.0, 8.0),
+            "lens": 35,
+            "desc": "Close detail of bridge crash barriers, Aether beacons, retaining walls, and gantry pipes",
         },
     ]
 

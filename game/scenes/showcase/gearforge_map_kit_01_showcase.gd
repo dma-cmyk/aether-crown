@@ -30,6 +30,7 @@ const ASSETS: Dictionary = {
 	"road_straight": preload("res://assets/models/map/gearforge_road_straight.glb"),
 	"road_barrier": preload("res://assets/models/map/gearforge_road_barrier.glb"),
 	"industrial_pipe_straight": preload("res://assets/models/map/gearforge_industrial_pipe_straight.glb"),
+	"trench_industrial": preload("res://assets/models/map/gearforge_trench_industrial.glb"),
 }
 
 const TitanGLB: PackedScene = preload("res://assets/models/gearforge_titan.glb")
@@ -41,7 +42,7 @@ const WalkerGLB: PackedScene = preload("res://assets/models/gearforge_walker.glb
 @onready var readout: Label = $HUD/Readout
 
 var _elapsed: float = 0.0
-var _total_tris: int = 13580
+var _total_tris: int = 21990
 
 
 func _ready() -> void:
@@ -50,7 +51,7 @@ func _ready() -> void:
 	_assemble_palette_row()
 	_place_scale_units()
 	_set_view(Vector3(0, 0, 32), 48.0)
-	print("GEARFORGE_MAP_KIT_01_SHOWCASE_READY: 14 modular assets loaded successfully.")
+	print("GEARFORGE_MAP_KIT_01_SHOWCASE_READY: 15 modular assets loaded successfully.")
 
 
 func _build_ground_plane() -> void:
@@ -99,6 +100,10 @@ func _assemble_diorama() -> void:
 	_instantiate_asset("cliff_large", Vector3(-32.0, 0.0, 24.0), 0.0, root)
 	_instantiate_asset("cliff_corner_in", Vector3(24.0, 0.0, 16.0), 0.0, root)
 
+	# 2.5 Industrial Trench crossing under bridge (along X axis at Y=0)
+	_instantiate_asset("trench_industrial", Vector3(-8.0, 0.0, 0.0), 90.0, root)
+	_instantiate_asset("trench_industrial", Vector3(8.0, 0.0, 0.0), 90.0, root)
+
 	# 3. Heavy Bridge (Crossing canyon from Z = -16 to Z = +16, Deck Y = 8.0)
 	_instantiate_asset("gearforge_bridge_heavy" if ASSETS.has("gearforge_bridge_heavy") else "bridge_heavy", Vector3(0.0, 0.0, 0.0), 0.0, root)
 
@@ -126,9 +131,10 @@ func _assemble_diorama() -> void:
 
 func _assemble_palette_row() -> void:
 	var root := $PaletteRoot
-	# Arrange all 14 assets in an inspection row along Z = -50
+	# Arrange all 15 assets in an inspection row along Z = -50
 	var items := [
-		["bridge_heavy", -45.0],
+		["bridge_heavy", -48.0],
+		["trench_industrial", -38.0],
 		["cliff_straight", -28.0],
 		["cliff_corner_in", -20.0],
 		["cliff_corner_out", -12.0],

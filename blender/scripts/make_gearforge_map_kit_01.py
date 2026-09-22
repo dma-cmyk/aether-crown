@@ -36,7 +36,7 @@ SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-from material_lib import palette  # noqa: E402
+from material_lib import palette, make_pbr  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 SOURCE_BLEND = os.path.join(ROOT, "blender", "source", "gearforge_map_kit_01.blend")
@@ -59,12 +59,14 @@ def clear_scene():
 
 def get_materials():
     full = palette("gearforge")
+    # Tuned masonry stone for large structures: slightly darker to prevent blowout under direct sun
+    stone_map = make_pbr("gearforge_stone_map", (0.28, 0.27, 0.26), metallic=0.08, roughness=0.88)
     return {
         "dark_iron": full["dark_iron"],
         "steel": full["steel"],
         "brass": full["brass"],
         "copper": full["copper"],
-        "stone": full["stone"],
+        "stone": stone_map,
         "aether_glow": full["aether_glow"],
         "furnace_glow": full["furnace_glow"],
     }
@@ -304,13 +306,22 @@ def build_bridge_heavy(mats):
         # Stone footing in canyon floor
         trapezoid(f"bridge_pier_stone_{int(py)}", 16.0, 6.0, 14.0, 4.8, 4.0,
                   (0.0, py, 2.0), ST, bevel=0.08)
+        # Heavy cast-iron armor bands on pier stone footing
+        box(f"bridge_pier_band_lo_{int(py)}", (16.2, 6.2, 0.4), (0.0, py, 1.2), H, bevel=0.03)
+        box(f"bridge_pier_band_hi_{int(py)}", (14.6, 5.2, 0.4), (0.0, py, 3.6), H, bevel=0.03)
         # Dark iron structural pier rising to deck
         box(f"bridge_pier_iron_{int(py)}", (13.5, 4.2, 3.8), (0.0, py, 5.9), H, bevel=0.06)
         # Brass expansion bearing plate
         box(f"bridge_pier_bearing_{int(py)}", (14.0, 4.6, 0.3), (0.0, py, 7.85), B, bevel=0.02)
-        # Heavy reinforcement braces on piers
-        for bx in (-5.5, 5.5):
-            cylinder(f"bridge_pier_brace_{int(py)}_{int(bx)}", 0.35, 4.2, (bx, py, 5.8), S, vertices=8)
+        # Heavy vertical reinforcement column ribs on piers
+        for bx in (-5.5, -2.5, 2.5, 5.5):
+            cylinder(f"bridge_pier_brace_{int(py)}_{int(bx * 10)}", 0.35, 4.2, (bx, py, 5.8), S, vertices=8)
+            cylinder(f"bridge_pier_bolt_{int(py)}_{int(bx * 10)}", 0.16, 0.25, (bx, py - 2.2, 6.5), B,
+                     rot=(math.radians(90.0), 0.0, 0.0))
+        # Heavy steam valve assembly on pier sides
+        cylinder(f"bridge_pier_pipe_{int(py)}", 0.24, 4.5, (6.8, py, 4.5), C, vertices=10)
+        cylinder(f"bridge_pier_valve_{int(py)}", 0.45, 0.12, (7.1, py, 5.5), B,
+                 vertices=12, rot=(0.0, math.radians(90.0), 0.0))
 
     # 2. Main Longitudinal Steel Box Girders & Cross Beams
     for gx in (-7.2, 7.2):
@@ -318,6 +329,17 @@ def build_bridge_heavy(mats):
         box(f"bridge_main_girder_{int(gx)}", (1.2, SPAN, 1.4), (gx, 0.0, DECK_Z - 0.7), H, bevel=0.04)
         # Secondary inner girder
         box(f"bridge_sub_girder_{int(gx)}", (0.8, SPAN, 1.0), (gx * 0.45, 0.0, DECK_Z - 0.5), H, bevel=0.03)
+
+    # Center-span Under-Bridge Arch Trusses (between piers Y = -9.0 to +9.0)
+    for ax in (-6.5, 6.5):
+        # Low arch tie beam
+        box(f"bridge_arch_tie_{int(ax)}", (0.5, 18.0, 0.6), (ax, 0.0, 4.8), H, bevel=0.03)
+        # V-shaped diagonal strut braces connecting arch tie to main girder
+        for vy, rot_ang in ((-6.0, 28.0), (-2.0, -28.0), (2.0, 28.0), (6.0, -28.0)):
+            box(f"bridge_arch_strut_{int(ax)}_{int(vy)}", (0.35, 0.35, 2.6),
+                (ax, vy, 6.1), S, rot=(math.radians(rot_ang), 0.0, 0.0), bevel=0.02)
+            cylinder(f"bridge_arch_gusset_{int(ax)}_{int(vy)}", 0.28, 0.40,
+                     (ax, vy, 4.8), B, vertices=8, rot=(0.0, math.radians(90.0), 0.0))
 
     # Transverse cross beams every 4m along the span
     for y_step in range(-14, 15, 4):
@@ -336,14 +358,29 @@ def build_bridge_heavy(mats):
         box(f"bridge_deck_rib_{y_ridge}", (ROAD_W - 0.6, 0.25, 0.04),
             (0.0, float(y_ridge), DECK_Z + 0.22), S, bevel=0.01)
 
-    # 4. Heavy Industrial Railings & Side Trusses
+    # Embedded Aether Power Rails (Twin glowing cyan power lines powering Titan strides)
+    for rx in (-2.4, 2.4):
+        box(f"bridge_aether_power_rail_{int(rx * 10)}", (0.24, SPAN, 0.05),
+            (rx, 0.0, DECK_Z + 0.24), G_AETHER, bevel=0.01)
+        box(f"bridge_brass_contact_{int(rx * 10)}", (0.08, SPAN, 0.07),
+            (rx + 0.16, 0.0, DECK_Z + 0.25), B, bevel=0.01)
+
+    # 4. Heavy Industrial Railings, Cantilever Catwalks & Side Trusses
     for sx in (-1.0, 1.0):
         side_x = sx * (TOTAL_W * 0.5 - 0.8) # ±8.2m
         curb_x = sx * (ROAD_W * 0.5 + 0.3)  # ±7.3m
+        catwalk_x = sx * (TOTAL_W * 0.5 + 0.2) # ±9.2m
         side_tag = "l" if sx < 0 else "r"
 
         # Continuous wheel curb / crash barrier
         box(f"bridge_curb_{side_tag}", (0.8, SPAN, 0.7), (curb_x, 0.0, DECK_Z + 0.35), H, bevel=0.04)
+
+        # Exterior Infantry Inspection Catwalk
+        box(f"bridge_catwalk_deck_{side_tag}", (0.8, SPAN, 0.12), (catwalk_x, 0.0, DECK_Z - 0.05), S, bevel=0.02)
+        # Cantilever support brackets under catwalk (every 4m)
+        for y_canti in range(-16, 17, 4):
+            box(f"bridge_canti_arm_{side_tag}_{y_canti}", (1.4, 0.25, 0.55),
+                (sx * (TOTAL_W * 0.5 - 0.2), float(y_canti), DECK_Z - 0.35), H, bevel=0.02)
 
         # Industrial open truss railing posts (every 4m)
         for y_post in range(-16, 17, 4):
@@ -365,6 +402,9 @@ def build_bridge_heavy(mats):
                  (side_x, 0.0, DECK_Z + 2.1), B, vertices=10, rot=(math.radians(90.0), 0.0, 0.0))
         cylinder(f"bridge_rail_mid_{side_tag}", 0.08, SPAN,
                  (side_x, 0.0, DECK_Z + 1.2), S, vertices=8, rot=(math.radians(90.0), 0.0, 0.0))
+        # Outer catwalk safety rail
+        cylinder(f"bridge_catwalk_rail_{side_tag}", 0.06, SPAN,
+                 (catwalk_x + sx * 0.35, 0.0, DECK_Z + 1.0), B, vertices=8, rot=(math.radians(90.0), 0.0, 0.0))
 
         # Diagonal reinforcement cross trusses between stanchions
         for y_truss in range(-14, 15, 4):
@@ -408,26 +448,39 @@ def build_cliff_straight(mats):
     C = mats["copper"]
     ST = mats["stone"]
 
-    # 1. Stepped natural stone bluff base
-    trapezoid("cliff_stone_base", 16.0, 8.0, 16.0, 6.5, 4.5,
-              (0.0, 0.75, 2.25), ST, bevel=0.10)
-    trapezoid("cliff_stone_upper", 16.0, 6.5, 16.0, 5.5, 3.5,
-              (0.0, 1.25, 6.25), ST, bevel=0.08)
+    # 1. Stepped natural stone bluff base (Terraced rock layers)
+    trapezoid("cliff_stone_base", 16.0, 8.0, 16.0, 6.2, 4.2,
+              (0.0, 0.9, 2.1), ST, bevel=0.10)
+    # Intermediate rock terrace ledge
+    box("cliff_stone_terrace", (16.0, 1.2, 0.4), (0.0, -2.1, 4.2), H, bevel=0.03)
+    trapezoid("cliff_stone_upper", 16.0, 6.2, 16.0, 5.0, 3.8,
+              (0.0, 1.5, 6.1), ST, bevel=0.08)
 
     # 2. Heavy industrial cast-iron retaining wall section on face (-Y face)
-    box("cliff_retaining_wall", (10.0, 0.8, 5.0), (0.0, -2.4, 3.5), H,
+    box("cliff_retaining_wall", (12.0, 0.8, 5.2), (0.0, -2.4, 3.6), H,
         rot=(math.radians(-8.0), 0.0, 0.0), bevel=0.05)
-    # Steel vertical anchor pillars
-    for px in (-4.0, 0.0, 4.0):
-        box(f"cliff_anchor_beam_{int(px)}", (0.5, 0.6, 5.6), (px, -2.5, 3.5), S,
+    # Steel vertical anchor pillars & horizontal walers
+    for px in (-5.0, -2.5, 0.0, 2.5, 5.0):
+        box(f"cliff_anchor_beam_{int(px*10)}", (0.5, 0.6, 5.8), (px, -2.5, 3.6), S,
             rot=(math.radians(-8.0), 0.0, 0.0), bevel=0.03)
-        cylinder(f"cliff_anchor_bolt_{int(px)}", 0.16, 0.20, (px, -2.8, 5.5), B,
+        cylinder(f"cliff_anchor_bolt_{int(px*10)}", 0.16, 0.20, (px, -2.8, 5.6), B,
                  rot=(math.radians(90.0), 0.0, 0.0))
 
+    # Horizontal reinforcement beam across face
+    box("cliff_horiz_waler", (12.4, 0.4, 0.4), (0.0, -2.7, 3.8), S, bevel=0.02)
+
+    # Diagonal X-tie tension rods
+    for bx, bang in ((-3.0, 24.0), (3.0, -24.0)):
+        box(f"cliff_xtie_{int(bx)}", (0.12, 4.2, 0.12), (bx, -2.55, 3.6), B,
+            rot=(math.radians(-8.0), 0.0, math.radians(bang)))
+
     # 3. Heavy drainage / steam culvert pipe penetrating the cliff face
-    cylinder("cliff_drain_pipe", 0.45, 2.2, (-2.5, -2.0, 1.5), C, vertices=10,
+    cylinder("cliff_drain_pipe", 0.45, 2.4, (-3.5, -2.0, 1.6), C, vertices=10,
              rot=(math.radians(90.0), 0.0, 0.0))
-    torus("cliff_drain_ring", 0.48, 0.06, (-2.5, -2.8, 1.5), B, rot=(math.radians(90.0), 0.0, 0.0))
+    torus("cliff_drain_ring", 0.48, 0.06, (-3.5, -2.9, 1.6), B, rot=(math.radians(90.0), 0.0, 0.0))
+    # Secondary small electrical conduit
+    cylinder("cliff_elec_conduit", 0.18, 2.0, (4.2, -2.2, 2.2), H, vertices=8,
+             rot=(math.radians(90.0), 0.0, 0.0))
 
     # 4. Flat plateau top surface (Z = 8.0m, Y from -1.5 to +4.0)
     box("cliff_top_slab", (16.0, 5.5, 0.2), (0.0, 1.25, 7.9), ST, bevel=0.02)
@@ -435,6 +488,81 @@ def build_cliff_straight(mats):
     box("cliff_top_coping", (16.0, 0.4, 0.3), (0.0, -1.4, 8.05), H, bevel=0.02)
 
     joined = join_all_into_asset("gearforge_cliff_straight")
+    return joined
+
+
+def build_trench_industrial(mats):
+    """Industrial Trench / Military Moat Module: 16m W x 16m L x 8m H.
+    Channel inner width 12m, floor at Z=0m, side retaining walls at X=±6m to ±8m up to Z=8m.
+    Features heavy sheet pile ribs, conduit gantries, floor drainage, and aether conduit line."""
+    clear_scene()
+    H = mats["dark_iron"]
+    S = mats["steel"]
+    B = mats["brass"]
+    C = mats["copper"]
+    ST = mats["stone"]
+    G_AETHER = mats["aether_glow"]
+
+    T_LEN = 16.0
+    WALL_X = 6.0  # Channel half-width (12m clear trench)
+    WALL_H = 8.0
+
+    # 1. Reinforced Trench Floor Slab (Z = 0 to 0.4m, X = -8 to +8)
+    box("trench_floor_slab", (16.0, T_LEN, 0.4), (0.0, 0.0, 0.2), ST, bevel=0.03)
+    # Central Aether sludge / cooling conduit trough
+    box("trench_drain_trough", (2.2, T_LEN, 0.25), (0.0, 0.0, 0.35), H, bevel=0.02)
+    cylinder("trench_aether_line", 0.35, T_LEN, (0.0, 0.0, 0.38), G_AETHER,
+             vertices=10, rot=(math.radians(90.0), 0.0, 0.0))
+    # Grate slats over trough every 2m
+    for y_slat in range(-7, 8, 2):
+        box(f"trench_grate_{y_slat}", (2.4, 0.25, 0.08), (0.0, float(y_slat), 0.45), S, bevel=0.01)
+
+    # 2. Left & Right Retaining Wall Sheet Piles (X = ±6.0m to ±8.0m, Z = 0.4m to 8.0m)
+    for sx in (-1.0, 1.0):
+        wall_center_x = sx * 7.0
+        face_x = sx * WALL_X
+        tag = "l" if sx < 0 else "r"
+
+        # Heavy masonry / concrete backing
+        trapezoid(f"trench_wall_masonry_{tag}", 2.0, T_LEN, 1.6, T_LEN, WALL_H - 0.4,
+                  (wall_center_x, 0.0, (WALL_H + 0.4) * 0.5), ST, bevel=0.06)
+
+        # Industrial Sheet-Pile Steel Retaining Face
+        box(f"trench_steel_face_{tag}", (0.25, T_LEN, WALL_H - 0.4),
+            (face_x, 0.0, (WALL_H + 0.4) * 0.5), H, bevel=0.02)
+
+        # Vertical Steel I-beam Piles every 4m
+        for y_pile in range(-6, 7, 4):
+            box(f"trench_pile_{tag}_{y_pile}", (0.45, 0.55, WALL_H),
+                (face_x - sx * 0.15, float(y_pile), WALL_H * 0.5), S, bevel=0.02)
+            cylinder(f"trench_pile_anchor_{tag}_{y_pile}", 0.16, 0.25,
+                     (face_x - sx * 0.25, float(y_pile), 6.5), B, rot=(0.0, math.radians(90.0), 0.0))
+
+        # Horizontal Wall Bracing Wale Beam
+        box(f"trench_wale_{tag}", (0.35, T_LEN, 0.45),
+            (face_x - sx * 0.1, 0.0, 4.5), S, bevel=0.02)
+
+        # Wall-mounted Industrial Pipeline (Steam & Electrical)
+        cylinder(f"trench_pipe_steam_{tag}", 0.22, T_LEN,
+                 (face_x + sx * 0.35, 0.0, 3.2), C, vertices=10, rot=(math.radians(90.0), 0.0, 0.0))
+        cylinder(f"trench_pipe_oil_{tag}", 0.16, T_LEN,
+                 (face_x + sx * 0.35, 0.0, 2.4), H, vertices=8, rot=(math.radians(90.0), 0.0, 0.0))
+
+        # Steel Maintenance Ladder on one side
+        if sx < 0:
+            for lz in range(1, 8):
+                box(f"trench_rung_{lz}", (0.1, 0.6, 0.06), (face_x + 0.2, 2.0, float(lz)), B)
+            cylinder("trench_ladder_rail_1", 0.04, WALL_H - 1.0, (face_x + 0.2, 1.7, WALL_H * 0.5), S)
+            cylinder("trench_ladder_rail_2", 0.04, WALL_H - 1.0, (face_x + 0.2, 2.3, WALL_H * 0.5), S)
+
+        # Top Ground Safety Guardrail (Z = 8.0m to 9.2m at edge X = ±6.2m)
+        cylinder(f"trench_guard_top_{tag}", 0.06, T_LEN,
+                 (face_x - sx * 0.4, 0.0, WALL_H + 1.1), B, rot=(math.radians(90.0), 0.0, 0.0))
+        for y_gpost in range(-6, 7, 4):
+            box(f"trench_gpost_{tag}_{y_gpost}", (0.15, 0.15, 1.2),
+                (face_x - sx * 0.4, float(y_gpost), WALL_H + 0.6), H, bevel=0.01)
+
+    joined = join_all_into_asset("gearforge_trench_industrial")
     return joined
 
 
@@ -611,6 +739,33 @@ def build_fortress_gate(mats):
         # Heavy cast-iron upper tower
         box(f"gate_tower_upper_{side_tag}", (tower_w - 0.6, DEPTH - 0.6, 8.5),
             (tower_x, 0.0, 10.25), H, bevel=0.06)
+
+        # Forward Sloped Bastion Buttresses (Reinforced inclined armor ram rampart on front face)
+        trapezoid(f"gate_buttress_{side_tag}", 3.6, 3.2, 2.4, 1.2, 7.5,
+                  (tower_x, -DEPTH * 0.5 - 1.2, 3.75), H, bevel=0.06)
+        # Heavy brass tie plate on buttress nose
+        box(f"gate_buttress_cap_{side_tag}", (2.2, 0.3, 1.2),
+            (tower_x, -DEPTH * 0.5 - 2.6, 2.0), B, bevel=0.02)
+
+        # Defensive Gunport Slit (Heavy embrasure for anti-walker point defense)
+        box(f"gate_gunport_frame_{side_tag}", (2.2, 0.45, 1.0),
+            (tower_x, -DEPTH * 0.5 - 0.15, 10.2), H, bevel=0.03)
+        box(f"gate_gunport_slit_{side_tag}", (1.6, 0.6, 0.45),
+            (tower_x, -DEPTH * 0.5 - 0.2, 10.2), S, bevel=0.02)
+        cylinder(f"gate_gunport_bolt_{side_tag}_l", 0.08, 0.2,
+                 (tower_x - 0.9, -DEPTH * 0.5 - 0.35, 10.2), B, rot=(math.radians(90.0), 0.0, 0.0))
+        cylinder(f"gate_gunport_bolt_{side_tag}_r", 0.08, 0.2,
+                 (tower_x + 0.9, -DEPTH * 0.5 - 0.35, 10.2), B, rot=(math.radians(90.0), 0.0, 0.0))
+
+        # Dual Rotating Searchlight Pod on Tower Corner
+        cylinder(f"gate_spotlight_mount_{side_tag}", 0.20, 0.6,
+                 (tower_x + sx * 2.2, -DEPTH * 0.5 + 0.4, 15.0), B)
+        box(f"gate_spotlight_housing_{side_tag}", (0.55, 0.70, 0.55),
+            (tower_x + sx * 2.2, -DEPTH * 0.5 + 0.4, 15.6), H, bevel=0.02)
+        cylinder(f"gate_spotlight_lens_{side_tag}", 0.22, 0.15,
+                 (tower_x + sx * 2.2, -DEPTH * 0.5 + 0.05, 15.6), G_AETHER,
+                 rot=(math.radians(90.0), 0.0, 0.0))
+
         # Crenellated parapet on tower top (Z = 14.5m to 16.0m)
         box(f"gate_tower_parapet_f_{side_tag}", (tower_w - 0.6, 0.6, 1.5),
             (tower_x, -DEPTH * 0.5 + 0.6, 15.25), S, bevel=0.03)
@@ -621,9 +776,9 @@ def build_fortress_gate(mats):
             (tower_x, -DEPTH * 0.5 - 0.05, 8.5), S, bevel=0.02)
 
         # Arrow slit / viewing slit with Aether Cyan glow
-        cylinder(f"gate_visor_bezel_{side_tag}", 0.35, 0.25, (tower_x, -DEPTH * 0.5 - 0.08, 12.0), B,
+        cylinder(f"gate_visor_bezel_{side_tag}", 0.35, 0.25, (tower_x, -DEPTH * 0.5 - 0.08, 12.5), B,
                  rot=(math.radians(90.0), 0.0, 0.0))
-        cylinder(f"gate_visor_glow_{side_tag}", 0.22, 0.30, (tower_x, -DEPTH * 0.5 - 0.08, 12.0), G_AETHER,
+        cylinder(f"gate_visor_glow_{side_tag}", 0.22, 0.30, (tower_x, -DEPTH * 0.5 - 0.08, 12.5), G_AETHER,
                  vertices=8, rot=(math.radians(90.0), 0.0, 0.0))
 
     # 2. Gate Archway & Header Structure (Z = 12.5m to 16.0m spanning X = -5.0m to +5.0m)
@@ -633,29 +788,56 @@ def build_fortress_gate(mats):
     # Reinforced steel face with Gearforge rivet bands
     box("gate_lintel_fascia", (GATE_CLEAR_W, 0.4, 1.8),
         (0.0, -DEPTH * 0.5 + 0.2, GATE_CLEAR_H + 1.1), S, bevel=0.03)
+    # Outer reinforced arch rib band
+    cylinder("gate_arch_lip", GATE_CLEAR_W * 0.5 + 0.5, 0.6,
+             (0.0, -DEPTH * 0.5 + 0.4, GATE_CLEAR_H), B,
+             vertices=16, rot=(0.0, math.radians(90.0), 0.0))
 
-    # 3. Heavy Portcullis / Armored Sliding Gate (Shown half-retracted for dramatic depth)
-    # Retracted upper gate leaf
-    box("gate_portcullis_leaf", (GATE_CLEAR_W - 0.4, 0.6, 4.0),
-        (0.0, 0.0, GATE_CLEAR_H + 0.5), H, bevel=0.03)
+    # 3. Heavy Portcullis & Hydraulic Ram Gate Mechanism
+    # Retracted upper gate leaf with heavy armor plate
+    box("gate_portcullis_leaf", (GATE_CLEAR_W - 0.4, 0.8, 4.2),
+        (0.0, 0.0, GATE_CLEAR_H + 0.6), H, bevel=0.03)
+    # Diagonal cross bracing on portcullis plate
+    for bx, b_ang in ((-2.2, 35.0), (2.2, -35.0)):
+        box(f"gate_portcullis_brace_{int(bx*10)}", (0.35, 0.9, 4.4),
+            (bx, 0.0, GATE_CLEAR_H + 0.6), S, rot=(0.0, math.radians(b_ang), 0.0), bevel=0.02)
     # Heavy vertical steel tines
     for tx in (-4.0, -2.4, -0.8, 0.8, 2.4, 4.0):
-        cylinder(f"gate_tine_{int(tx * 10)}", 0.14, 3.5, (tx, 0.0, GATE_CLEAR_H - 1.2), S, vertices=8)
-        cylinder(f"gate_tine_point_{int(tx * 10)}", 0.16, 0.5, (tx, 0.0, GATE_CLEAR_H - 2.8), B, vertices=6)
+        cylinder(f"gate_tine_{int(tx * 10)}", 0.16, 3.6, (tx, 0.0, GATE_CLEAR_H - 1.2), S, vertices=8)
+        cylinder(f"gate_tine_point_{int(tx * 10)}", 0.18, 0.6, (tx, 0.0, GATE_CLEAR_H - 2.8), B, vertices=6)
 
-    # 4. Overhead Steam Winch & Aether Power Mechanism
-    # Giant central winch drum
+    # Massive Hydraulic Lifting Rams on Gate Jambs
+    for jx in (-4.8, 4.8):
+        cylinder(f"gate_ram_cyl_{int(jx * 10)}", 0.28, 6.5, (jx, 0.0, 9.5), C, vertices=10)
+        cylinder(f"gate_ram_piston_{int(jx * 10)}", 0.18, 5.0, (jx, 0.0, 11.5), S, vertices=8)
+        box(f"gate_ram_mount_{int(jx * 10)}", (0.5, 0.8, 0.8), (jx, 0.0, 6.5), B, bevel=0.03)
+
+    # 4. Central Command Cupola Superstructure (Z = 16.0m to 19.5m)
+    # Octagonal watchtower cupola atop gate center
+    cylinder("gate_cupola_body", 2.6, 2.4, (0.0, 0.0, GATE_CLEAR_H + 4.8), H,
+             vertices=8, bevel=0.05)
+    # Observation visor slit with Aether glow
+    box("gate_cupola_visor", (3.2, 0.35, 0.5), (0.0, -2.4, GATE_CLEAR_H + 5.0), G_AETHER, bevel=0.02)
+    # Brass cupola roof dome
+    cylinder("gate_cupola_roof", 2.8, 0.4, (0.0, 0.0, GATE_CLEAR_H + 6.1), B, vertices=8)
+
+    # Twin heavy steam exhaust stacks rising from cupola roof
+    for px in (-1.4, 1.4):
+        cylinder(f"gate_steam_stack_{int(px * 10)}", 0.32, 2.8, (px, 0.6, GATE_CLEAR_H + 7.2), C, vertices=10)
+        torus(f"gate_stack_ring_{int(px * 10)}", 0.36, 0.06, (px, 0.6, GATE_CLEAR_H + 8.4), B)
+
+    # Overhead Steam Winch Drum with giant brass spur gears
     cylinder("gate_winch_drum", 0.85, 3.6, (0.0, 0.0, GATE_CLEAR_H + 2.3), C,
              vertices=14, rot=(0.0, math.radians(90.0), 0.0))
-    # Massive brass spur gears on winch ends
     for sx in (-1.8, 1.8):
         cylinder(f"gate_winch_gear_{int(sx * 10)}", 1.25, 0.25, (sx, 0.0, GATE_CLEAR_H + 2.3), B,
                  vertices=18, rot=(0.0, math.radians(90.0), 0.0))
-    # Glowing Aether regulator core atop gate center
-    box("gate_aether_housing", (1.6, 1.2, 1.4), (0.0, -DEPTH * 0.5 - 0.2, GATE_CLEAR_H + 1.2), H, bevel=0.03)
-    cylinder("gate_aether_core", 0.45, 0.35, (0.0, -DEPTH * 0.5 - 0.3, GATE_CLEAR_H + 1.2), G_AETHER,
+
+    # Glowing Aether regulator core atop gate front
+    box("gate_aether_housing", (1.8, 1.2, 1.6), (0.0, -DEPTH * 0.5 - 0.2, GATE_CLEAR_H + 1.2), H, bevel=0.03)
+    cylinder("gate_aether_core", 0.55, 0.35, (0.0, -DEPTH * 0.5 - 0.3, GATE_CLEAR_H + 1.2), G_AETHER,
              vertices=12, rot=(math.radians(90.0), 0.0, 0.0))
-    torus("gate_aether_ring", 0.50, 0.08, (0.0, -DEPTH * 0.5 - 0.3, GATE_CLEAR_H + 1.2), B,
+    torus("gate_aether_ring", 0.60, 0.09, (0.0, -DEPTH * 0.5 - 0.3, GATE_CLEAR_H + 1.2), B,
           rot=(math.radians(90.0), 0.0, 0.0))
 
     joined = join_all_into_asset("gearforge_fortress_gate")
@@ -680,6 +862,16 @@ def build_wall_straight(mats):
 
     # 2. Heavy Cast-Iron Wall Body (Z = 4.5 to 8.0m)
     box("wall_iron_body", (W_LEN, W_THICK, 3.5), (0.0, 0.0, 6.25), H, bevel=0.05)
+
+    # External Reinforcement Buttresses on Front Face (-Y)
+    for bx in (-5.0, 0.0, 5.0):
+        trapezoid(f"wall_buttress_{int(bx)}", 1.8, 1.6, 1.2, 0.6, 7.5,
+                  (bx, -W_THICK * 0.5 - 0.7, 3.75), H, bevel=0.04)
+        cylinder(f"wall_buttress_cap_{int(bx)}", 0.16, 0.25,
+                 (bx, -W_THICK * 0.5 - 1.2, 5.5), B, rot=(math.radians(90.0), 0.0, 0.0))
+
+    # Horizontal Brass Armor Trim along wall face
+    box("wall_armor_trim", (W_LEN, 0.15, 0.35), (0.0, -W_THICK * 0.5 - 0.05, 5.8), B, bevel=0.01)
 
     # 3. Walkway Deck on Top (Z = 8.0m)
     box("wall_walkway_deck", (W_LEN, W_THICK - 0.6, 0.3), (0.0, 0.0, WALK_H), S, bevel=0.02)
@@ -736,7 +928,7 @@ def build_wall_corner(mats):
 
 
 def build_wall_tower(mats):
-    """Fortress Wall Watchtower: 8m x 8m, Height 14.0m with observation deck, searchlight, and Aether scanner."""
+    """Fortress Wall Watchtower: 8m x 8m, Height 16.5m with observation deck, searchlight, cupola roof, and antenna mast."""
     clear_scene()
     H = mats["dark_iron"]
     S = mats["steel"]
@@ -766,7 +958,14 @@ def build_wall_tower(mats):
             rot=(0.0, 0.0, rot_y), bevel=0.02)
 
     # 4. Searchlight & Aether Sensor Cupola on Roof
-    cylinder("tower_cupola_base", 1.2, 0.8, (0.0, 0.0, 12.6), H, vertices=12)
+    cylinder("tower_cupola_base", 1.8, 1.4, (0.0, 0.0, 13.0), H, vertices=8, bevel=0.03)
+    # Brass conical cupola roof
+    cylinder("tower_cupola_roof", 2.0, 0.6, (0.0, 0.0, 14.0), B, vertices=8)
+    # High-gain Aether antenna mast
+    cylinder("tower_antenna_mast", 0.08, 3.2, (0.0, 0.0, 15.6), S, vertices=8)
+    cylinder("tower_antenna_finial", 0.20, 0.35, (0.0, 0.0, 17.2), B, vertices=8)
+
+    # Front searchlight pod
     cylinder("tower_searchlight_pod", 0.45, 0.7, (0.0, -1.8, 13.5), B, vertices=10,
              rot=(math.radians(70.0), 0.0, 0.0))
     cylinder("tower_searchlight_lens", 0.35, 0.15, (0.0, -2.1, 13.4), G_AETHER, vertices=10,
@@ -896,7 +1095,9 @@ def main():
         ("gearforge_wall_corner", build_wall_corner),
         ("gearforge_wall_tower", build_wall_tower),
         ("gearforge_defensive_bastion", build_defensive_bastion),
-        # 4. Roads & Props
+        # 4. Trench & Ravine
+        ("gearforge_trench_industrial", build_trench_industrial),
+        # 5. Roads & Props
         ("gearforge_road_straight", build_road_straight),
         ("gearforge_road_barrier", build_road_barrier),
         ("gearforge_industrial_pipe_straight", build_industrial_pipe_straight),
@@ -928,6 +1129,7 @@ def main():
     clear_scene()
     grid_layout = [
         ("gearforge_bridge_heavy", build_bridge_heavy, (0.0, 0.0, 0.0)),
+        ("gearforge_trench_industrial", build_trench_industrial, (0.0, 36.0, 0.0)),
         ("gearforge_cliff_straight", build_cliff_straight, (-24.0, 16.0, 0.0)),
         ("gearforge_cliff_corner_in", build_cliff_corner_in, (-42.0, 16.0, 0.0)),
         ("gearforge_cliff_corner_out", build_cliff_corner_out, (-24.0, 34.0, 0.0)),
