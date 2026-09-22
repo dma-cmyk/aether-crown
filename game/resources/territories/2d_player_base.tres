@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="TerritoryDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/territory_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"2d_player_base"
+display_name = "Player Base Territory"
+description = "Fixed player home ground."
+linked_city_id = &""
+fixed_owner = 1
+aether_income_bonus = 0.00
+center = Vector3(-32, 0, -31)
+size = Vector2(22, 20)
+neighbor_ids = Array[String]([&"2d_west"])

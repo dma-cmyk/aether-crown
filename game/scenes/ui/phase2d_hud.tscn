@@ -1,0 +1,275 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/phase2d_hud.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/ui/selection_box.gd" id="2"]
+
+[node name="HUD" type="CanvasLayer"]
+script = ExtResource("1")
+
+[node name="SelectionBox" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("2")
+
+[node name="TopBar" type="HBoxContainer" parent="."]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -380.0
+offset_top = 10.0
+offset_right = 380.0
+offset_bottom = 42.0
+alignment = 1
+theme_override_constants/separation = 28
+
+[node name="MatLabel" type="Label" parent="TopBar"]
+text = "Material: --"
+
+[node name="AetherLabel" type="Label" parent="TopBar"]
+text = "Aether: --"
+
+[node name="PopLabel" type="Label" parent="TopBar"]
+text = "Pop: --"
+
+[node name="TimeLabel" type="Label" parent="TopBar"]
+text = "Time: 0:00"
+
+[node name="DebugBox" type="VBoxContainer" parent="."]
+offset_left = 16.0
+offset_top = 12.0
+offset_right = 560.0
+offset_bottom = 170.0
+mouse_filter = 2
+
+[node name="FpsLabel" type="Label" parent="DebugBox"]
+modulate = Color(0.7, 0.7, 0.7, 1)
+text = "FPS: --"
+
+[node name="UnitsLabel" type="Label" parent="DebugBox"]
+modulate = Color(0.7, 0.7, 0.7, 1)
+text = "Units: P 0 / E 0"
+
+[node name="AiLabel" type="Label" parent="DebugBox"]
+modulate = Color(0.7, 0.7, 0.7, 1)
+text = "AI: --"
+
+[node name="OverviewLabel" type="Label" parent="DebugBox"]
+modulate = Color(0.85, 0.85, 0.9, 1)
+text = "--"
+
+[node name="ModeLabel" type="Label" parent="DebugBox"]
+modulate = Color(0.7, 0.7, 0.7, 1)
+text = "LMB select | Drag box | RMB move/attack | A+click attack-move"
+
+[node name="CitiesBox" type="VBoxContainer" parent="."]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -320.0
+offset_top = 12.0
+offset_right = -16.0
+offset_bottom = 180.0
+mouse_filter = 2
+
+[node name="CitiesSummary" type="Label" parent="CitiesBox"]
+horizontal_alignment = 2
+text = "Cities: --"
+
+[node name="CityLine0" type="Label" parent="CitiesBox"]
+horizontal_alignment = 2
+text = "--"
+
+[node name="CityLine1" type="Label" parent="CitiesBox"]
+horizontal_alignment = 2
+text = "--"
+
+[node name="CityLine2" type="Label" parent="CitiesBox"]
+horizontal_alignment = 2
+text = "--"
+
+[node name="CityLine3" type="Label" parent="CitiesBox"]
+horizontal_alignment = 2
+text = "--"
+
+[node name="CityLine4" type="Label" parent="CitiesBox"]
+horizontal_alignment = 2
+text = "--"
+
+[node name="TerritoryBox" type="VBoxContainer" parent="."]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -320.0
+offset_top = 190.0
+offset_right = -16.0
+offset_bottom = 420.0
+mouse_filter = 2
+
+[node name="TerritorySummary" type="Label" parent="TerritoryBox"]
+horizontal_alignment = 2
+text = "Territories: --"
+
+[node name="TerrLine0" type="Label" parent="TerritoryBox"]
+horizontal_alignment = 2
+text = "--"
+
+[node name="TerrLine1" type="Label" parent="TerritoryBox"]
+horizontal_alignment = 2
+text = "--"
+
+[node name="TerrLine2" type="Label" parent="TerritoryBox"]
+horizontal_alignment = 2
+text = "--"
+
+[node name="TerrLine3" type="Label" parent="TerritoryBox"]
+horizontal_alignment = 2
+text = "--"
+
+[node name="TerrLine4" type="Label" parent="TerritoryBox"]
+horizontal_alignment = 2
+text = "--"
+
+[node name="TerrLine5" type="Label" parent="TerritoryBox"]
+horizontal_alignment = 2
+text = "--"
+
+[node name="TerrLine6" type="Label" parent="TerritoryBox"]
+horizontal_alignment = 2
+text = "--"
+
+[node name="DistrictBox" type="VBoxContainer" parent="."]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -320.0
+offset_top = -300.0
+offset_right = -16.0
+offset_bottom = -12.0
+mouse_filter = 2
+
+[node name="DistTitle" type="Label" parent="DistrictBox"]
+horizontal_alignment = 2
+text = "City Management"
+
+[node name="CityRow" type="HBoxContainer" parent="DistrictBox"]
+alignment = 2
+theme_override_constants/separation = 4
+
+[node name="BtnW" type="Button" parent="DistrictBox/CityRow"]
+text = "W"
+
+[node name="BtnN" type="Button" parent="DistrictBox/CityRow"]
+text = "N"
+
+[node name="BtnC" type="Button" parent="DistrictBox/CityRow"]
+text = "C"
+
+[node name="BtnS" type="Button" parent="DistrictBox/CityRow"]
+text = "S"
+
+[node name="BtnE" type="Button" parent="DistrictBox/CityRow"]
+text = "E"
+
+[node name="DistInfo" type="Label" parent="DistrictBox"]
+horizontal_alignment = 2
+text = "Districts: --"
+
+[node name="DistSlot0" type="Label" parent="DistrictBox"]
+horizontal_alignment = 2
+text = "--"
+
+[node name="DistSlot1" type="Label" parent="DistrictBox"]
+horizontal_alignment = 2
+text = "--"
+
+[node name="BuildCol" type="VBoxContainer" parent="DistrictBox"]
+theme_override_constants/separation = 2
+
+[node name="BtnIndustry" type="Button" parent="DistrictBox/BuildCol"]
+text = "Industry"
+
+[node name="BtnMilitary" type="Button" parent="DistrictBox/BuildCol"]
+text = "Military"
+
+[node name="BtnAether" type="Button" parent="DistrictBox/BuildCol"]
+text = "Aether"
+
+[node name="SelPanel" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -190.0
+offset_right = 260.0
+offset_bottom = -12.0
+
+[node name="SelVBox" type="VBoxContainer" parent="SelPanel"]
+
+[node name="SelTitle" type="Label" parent="SelPanel/SelVBox"]
+text = "Selection"
+
+[node name="SelInfo" type="Label" parent="SelPanel/SelVBox"]
+text = "--"
+
+[node name="ProdRow" type="HBoxContainer" parent="SelPanel/SelVBox"]
+visible = false
+theme_override_constants/separation = 8
+
+[node name="BtnInf" type="Button" parent="SelPanel/SelVBox/ProdRow"]
+text = "Infantry"
+
+[node name="BtnMar" type="Button" parent="SelPanel/SelVBox/ProdRow"]
+text = "Marksman"
+
+[node name="BtnHev" type="Button" parent="SelPanel/SelVBox/ProdRow"]
+text = "Heavy"
+
+[node name="ProdStatus" type="Label" parent="SelPanel/SelVBox"]
+text = ""
+
+[node name="ToastLabel" type="Label" parent="."]
+visible = false
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -120.0
+offset_right = 600.0
+offset_bottom = -90.0
+
+[node name="EndOverlay" type="Control" parent="."]
+process_mode = 3
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 0
+
+[node name="Dim" type="ColorRect" parent="EndOverlay"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.6)
+
+[node name="Center" type="CenterContainer" parent="EndOverlay"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="EndVBox" type="VBoxContainer" parent="EndOverlay/Center"]
+theme_override_constants/separation = 16
+
+[node name="ResultLabel" type="Label" parent="EndOverlay/Center/EndVBox"]
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 96
+text = "VICTORY"
+
+[node name="RestartButton" type="Button" parent="EndOverlay/Center/EndVBox"]
+theme_override_font_sizes/font_size = 32
+text = "Restart"

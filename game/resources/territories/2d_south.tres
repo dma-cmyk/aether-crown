@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="TerritoryDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/territory_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"2d_south"
+display_name = "South Works Territory"
+description = "Follows South Works."
+linked_city_id = &"south_works"
+fixed_owner = -1
+aether_income_bonus = 0.35
+center = Vector3(-1, 0, 18)
+size = Vector2(22, 18)
+neighbor_ids = Array[String]([&"2d_west", &"2d_central"])

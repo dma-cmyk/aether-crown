@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="TerritoryDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/territory_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"2d_east"
+display_name = "East Bastion Territory"
+description = "Follows East Bastion."
+linked_city_id = &"east_bastion"
+fixed_owner = -1
+aether_income_bonus = 0.25
+center = Vector3(21, 0, -3)
+size = Vector2(22, 20)
+neighbor_ids = Array[String]([&"2d_central", &"enemy_base"])

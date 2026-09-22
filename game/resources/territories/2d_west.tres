@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="TerritoryDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/territory_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"2d_west"
+display_name = "West Foundry Territory"
+description = "Follows West Foundry."
+linked_city_id = &"west_foundry"
+fixed_owner = -1
+aether_income_bonus = 0.25
+center = Vector3(-21, 0, 3)
+size = Vector2(22, 20)
+neighbor_ids = Array[String]([&"player_base", &"2d_north", &"2d_central", &"2d_south"])

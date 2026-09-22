@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="UnitDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/unit_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"gf_marksman"
+display_name = "Gearforge Marksman"
+description = "Phase 2D strategic-match issue. Costs Aether."
+faction_id = &"gearforge"
+cost_metal = 100
+cost_aether = 8
+build_time_sec = 24.0
+supply_cost = 1

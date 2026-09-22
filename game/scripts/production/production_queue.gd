@@ -1,8 +1,9 @@
 class_name ProductionQueue
 extends Node
-## Single production queue per HQ (Phase 1.5). Material is consumed at
-## enqueue time; population is reserved against used + already queued.
-## Only the front item progresses. No per-frame searches.
+## Single production queue per HQ (Phase 1.5). Material AND Aether are
+## consumed at enqueue time; population is reserved against used + queued.
+## Old unit defs carry cost_aether = 0, so Phase 1.5/2A/2B/2C behavior is
+## unchanged. Only the front item progresses. No per-frame searches.
 
 signal queue_changed
 signal unit_ready(def: UnitDefinition)
@@ -44,7 +45,7 @@ func queued_pop() -> int:
 	return total
 
 
-## Returns "ok" or a reason code: queue_full / no_material / no_pop.
+## Returns "ok" or a reason code: queue_full / no_material / no_aether / no_pop.
 func try_enqueue(def: UnitDefinition, economy: RTSEconomy) -> String:
 	if def == null or economy == null:
 		return "invalid"
@@ -52,9 +53,13 @@ func try_enqueue(def: UnitDefinition, economy: RTSEconomy) -> String:
 		return "queue_full"
 	if not economy.can_afford(float(def.cost_metal)):
 		return "no_material"
+	if economy.aether < float(def.cost_aether):
+		return "no_aether"
 	if not economy.can_house(def.supply_cost, queued_pop()):
 		return "no_pop"
 	economy.spend(float(def.cost_metal))
+	economy.aether = maxf(0.0, economy.aether - float(def.cost_aether))
+	economy.changed.emit()
 	queue.append(def)
 	queue_changed.emit()
 	return "ok"

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="UnitDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/unit_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"gf_heavy_guard"
+display_name = "Gearforge Heavy Guard"
+description = "Phase 2D strategic-match issue. Costs Aether."
+faction_id = &"gearforge"
+cost_metal = 150
+cost_aether = 15
+build_time_sec = 32.0
+supply_cost = 2

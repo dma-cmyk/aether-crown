@@ -42,7 +42,7 @@ func set_frontline(level: int) -> void:
 	for s in _front_strips:
 		(s as MeshInstance3D).visible = level != Frontline.NONE
 	if _front_mat != null:
-		_front_mat.emission_energy_multiplier = 2.5 if level == Frontline.HARD else 1.2
+		_front_mat.emission_energy_multiplier = 3.0 if level == Frontline.HARD else 1.5
 
 
 func owner_name() -> String:
@@ -94,12 +94,12 @@ func _build_visual(layer_index: int) -> void:
 	overlay.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(overlay)
 
-	# Perimeter border: 4 thin boxes (kept slim and slightly darkened so the
-	# base map stays readable; frontline strips carry the emphasis).
-	_add_edge(Vector3(w, 0.08, 0.18), Vector3(0, 0.10, -d * 0.5), _border_mat, false)
-	_add_edge(Vector3(w, 0.08, 0.18), Vector3(0, 0.10, d * 0.5), _border_mat, false)
-	_add_edge(Vector3(0.18, 0.08, d), Vector3(-w * 0.5, 0.10, 0), _border_mat, false)
-	_add_edge(Vector3(0.18, 0.08, d), Vector3(w * 0.5, 0.10, 0), _border_mat, false)
+	# Perimeter border: 4 slim boxes, darkened so the base map stays readable;
+	# frontline strips (below) carry the emphasis. Phase 2D polish.
+	_add_edge(Vector3(w, 0.07, 0.14), Vector3(0, 0.09, -d * 0.5), _border_mat, false)
+	_add_edge(Vector3(w, 0.07, 0.14), Vector3(0, 0.09, d * 0.5), _border_mat, false)
+	_add_edge(Vector3(0.14, 0.07, d), Vector3(-w * 0.5, 0.09, 0), _border_mat, false)
+	_add_edge(Vector3(0.14, 0.07, d), Vector3(w * 0.5, 0.09, 0), _border_mat, false)
 
 	# Frontline glow strips (same perimeter, brighter, toggled)
 	_add_edge(Vector3(w, 0.12, 0.5), Vector3(0, 0.14, -d * 0.5), _front_mat, true)
@@ -175,7 +175,7 @@ func _marker_pos() -> Vector3:
 
 func _refresh_colors() -> void:
 	var c := owner_color()
-	var dim := Color(c.r * 0.8, c.g * 0.8, c.b * 0.8, 1.0)
+	var dim := Color(c.r * 0.65, c.g * 0.65, c.b * 0.65, 1.0)
 	if _overlay_mat != null:
 		_overlay_mat.albedo_color = Color(c, OVERLAY_ALPHA)
 	if _border_mat != null:

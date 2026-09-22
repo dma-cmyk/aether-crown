@@ -28,6 +28,7 @@ var outpost: RTSOutpost
 var cities: Array = [] # Phase 2A: RTSCity list. Empty on the Phase 1.5 map.
 var target_city: RTSCity = null # Phase 2A: city chosen by _decide_city.
 var city_aether: Dictionary = {} # Phase 2B: city_id (String) -> linked territory aether value. Empty on older maps.
+var city_districts: Dictionary = {} # Phase 2D: city_id (String) -> completed district count. Empty on older maps.
 var district_saving: bool = false # Phase 2C: set by the 2C map while the enemy can start a district soon; pauses unit production (same wallet, just deferred). False on older maps.
 var infantry_def: UnitDefinition
 var marksman_def: UnitDefinition
@@ -122,6 +123,13 @@ func _decide_city(force: Array) -> int:
 	if defend != null and n < CAPTURE_ARMY:
 		target_city = defend
 		return Plan.DEFEND_CITY
+	# Behind on cities with a weak army: consolidate at the nearest owned
+	# city instead of feeding units into defended captures.
+	if n < 6 and _city_score() < 0:
+		var home := _nearest_own_city()
+		if home != null:
+			target_city = home
+			return Plan.DEFEND_CITY
 	var target := _pick_city_target()
 	if target != null and n >= CAPTURE_ARMY:
 		target_city = target
@@ -140,6 +148,44 @@ func _threatened_own_city() -> RTSCity:
 		if city != null and city.owner_side == RTSCity.Owner.ENEMY and city.contested:
 			return city
 	return null
+
+
+## Public read for the Phase 2D map: suspend district saving while any own
+## city is contested so threatened cities get units first.
+func is_city_threatened() -> bool:
+	return _threatened_own_city() != null
+
+
+## City score from the enemy side: +1 per ENEMY city, -1 per PLAYER city.
+## Used to turtle when behind instead of feeding captures.
+func _city_score() -> int:
+	var score := 0
+	for c in cities:
+		var city := c as RTSCity
+		if city == null:
+			continue
+		if city.owner_side == RTSCity.Owner.ENEMY:
+			score += 1
+		elif city.owner_side == RTSCity.Owner.PLAYER:
+			score -= 1
+	return score
+
+
+## Nearest ENEMY-owned city to the enemy HQ (consolidation point).
+func _nearest_own_city() -> RTSCity:
+	var best: RTSCity = null
+	var best_d := 1e9
+	var from := enemy_hq.global_position if enemy_hq != null else Vector3.ZERO
+	for c in cities:
+		var city := c as RTSCity
+		if city == null or city.owner_side != RTSCity.Owner.ENEMY:
+			continue
+		var d: Vector3 = city.global_position - from
+		d.y = 0.0
+		if d.length() < best_d:
+			best_d = d.length()
+			best = city
+	return best
 
 
 ## Best uncaptured city: recapture (PLAYER-owned) scores above neutral,
@@ -165,6 +211,9 @@ func _pick_city_target() -> RTSCity:
 		# Phase 2B: lightly value linked territory aether (Central weighs in).
 		# Empty dict on older maps, so Phase 1.5/2A behavior is unchanged.
 		score += float(city_aether.get(str(city.city_id), 0.0)) * 20.0
+		# Phase 2D: grown enemy-player cities are worth retaking; grown
+		# neutral cities are worth denying. Empty dict on older maps.
+		score += float(city_districts.get(str(city.city_id), 0)) * 8.0
 		if score > best_score:
 			best_score = score
 			best = city

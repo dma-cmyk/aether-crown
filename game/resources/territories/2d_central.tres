@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="TerritoryDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/territory_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"2d_central"
+display_name = "Central Nexus Territory"
+description = "High-Aether strategic region."
+linked_city_id = &"central_nexus"
+fixed_owner = -1
+aether_income_bonus = 0.70
+center = Vector3(1, 0, -1)
+size = Vector2(20, 22)
+neighbor_ids = Array[String]([&"2d_west", &"2d_north", &"2d_south", &"2d_east"])
