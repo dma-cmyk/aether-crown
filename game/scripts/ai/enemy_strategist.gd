@@ -28,6 +28,7 @@ var outpost: RTSOutpost
 var cities: Array = [] # Phase 2A: RTSCity list. Empty on the Phase 1.5 map.
 var target_city: RTSCity = null # Phase 2A: city chosen by _decide_city.
 var city_aether: Dictionary = {} # Phase 2B: city_id (String) -> linked territory aether value. Empty on older maps.
+var district_saving: bool = false # Phase 2C: set by the 2C map while the enemy can start a district soon; pauses unit production (same wallet, just deferred). False on older maps.
 var infantry_def: UnitDefinition
 var marksman_def: UnitDefinition
 var heavy_def: UnitDefinition
@@ -212,7 +213,10 @@ func _plan_destination() -> Vector3:
 
 
 ## Same wallet as the player: only enqueue what the economy can afford.
+## district_saving defers (never skips) spending while a district is near.
 func _produce(force: Array) -> void:
+	if district_saving:
+		return
 	if queue.queue.size() >= 2:
 		return
 	var def := _pick_production(force)

@@ -94,11 +94,12 @@ func _build_visual(layer_index: int) -> void:
 	overlay.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(overlay)
 
-	# Perimeter border: 4 thin boxes
-	_add_edge(Vector3(w, 0.10, 0.25), Vector3(0, 0.12, -d * 0.5), _border_mat, false)
-	_add_edge(Vector3(w, 0.10, 0.25), Vector3(0, 0.12, d * 0.5), _border_mat, false)
-	_add_edge(Vector3(0.25, 0.10, d), Vector3(-w * 0.5, 0.12, 0), _border_mat, false)
-	_add_edge(Vector3(0.25, 0.10, d), Vector3(w * 0.5, 0.12, 0), _border_mat, false)
+	# Perimeter border: 4 thin boxes (kept slim and slightly darkened so the
+	# base map stays readable; frontline strips carry the emphasis).
+	_add_edge(Vector3(w, 0.08, 0.18), Vector3(0, 0.10, -d * 0.5), _border_mat, false)
+	_add_edge(Vector3(w, 0.08, 0.18), Vector3(0, 0.10, d * 0.5), _border_mat, false)
+	_add_edge(Vector3(0.18, 0.08, d), Vector3(-w * 0.5, 0.10, 0), _border_mat, false)
+	_add_edge(Vector3(0.18, 0.08, d), Vector3(w * 0.5, 0.10, 0), _border_mat, false)
 
 	# Frontline glow strips (same perimeter, brighter, toggled)
 	_add_edge(Vector3(w, 0.12, 0.5), Vector3(0, 0.14, -d * 0.5), _front_mat, true)
@@ -174,10 +175,11 @@ func _marker_pos() -> Vector3:
 
 func _refresh_colors() -> void:
 	var c := owner_color()
+	var dim := Color(c.r * 0.8, c.g * 0.8, c.b * 0.8, 1.0)
 	if _overlay_mat != null:
 		_overlay_mat.albedo_color = Color(c, OVERLAY_ALPHA)
 	if _border_mat != null:
-		_border_mat.albedo_color = c
+		_border_mat.albedo_color = dim
 	if _front_mat != null:
 		_front_mat.albedo_color = c
 		_front_mat.emission = c

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="DistrictDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/district_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"industry"
+display_name = "Industry"
+description = "Material economy. Factory with chimney and furnace glow."
+material_cost = 140
+aether_cost = 25
+build_time_sec = 12.0
+material_income_bonus = 0.75
+aether_income_bonus = 0.0
+population_bonus = 0
+visual_type = &"industry"
