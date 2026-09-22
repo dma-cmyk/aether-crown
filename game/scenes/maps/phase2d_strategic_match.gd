@@ -11,6 +11,7 @@ const HeavyScene: PackedScene = preload("res://scenes/units/heavy_guard.tscn")
 const InfantryDef: UnitDefinition = preload("res://resources/units/2d_infantry.tres")
 const MarksmanDef: UnitDefinition = preload("res://resources/units/2d_marksman.tres")
 const HeavyDef: UnitDefinition = preload("res://resources/units/2d_heavy_guard.tres")
+const WalkerDef: UnitDefinition = preload("res://resources/units/gf_walker.tres")
 const HqDef: BuildingDefinition = preload("res://resources/buildings/gf_hq.tres")
 const WestDef: CityDefinition = preload("res://resources/cities/west_foundry.tres")
 const NorthDef: CityDefinition = preload("res://resources/cities/north_relay.tres")
@@ -30,9 +31,9 @@ const AetherWorksDef: DistrictDefinition = preload("res://resources/districts/ae
 
 const START_MATERIAL: float = 120.0
 const BASE_INCOME: float = 2.0
-const MAX_POP: int = 40
+const MAX_POP: int = 60
 const DISTRICT_AI_INTERVAL: float = 7.0
-const HQ_HP: float = 8000.0 # raised for 8-12min matches: HQ pushes take a while
+const HQ_HP: float = 14000.0 # Phase 2.7: long sieges — 8-12min playable matches
 const PLAYER_BASE_POS := Vector3(-32, 0, -32)
 const ENEMY_BASE_POS := Vector3(32, 0, 32)
 const WEST_CITY_POS := Vector3(-22, 0, 4)
@@ -101,8 +102,8 @@ func _ready() -> void:
 	_spawn_city($CentralCity as RTSCity, CentralDef, CENTRAL_CITY_POS)
 	_spawn_city($SouthCity as RTSCity, SouthDef, SOUTH_CITY_POS)
 	_spawn_city($EastCity as RTSCity, EastDef, EAST_CITY_POS)
-	economy_p.setup(true, START_MATERIAL, BASE_INCOME, MAX_POP, 0.0, 0.0)
-	economy_e.setup(false, START_MATERIAL, BASE_INCOME, MAX_POP, 0.0, 0.0)
+	economy_p.setup(true, START_MATERIAL, BASE_INCOME, MAX_POP, 0.0, 0.1)
+	economy_e.setup(false, START_MATERIAL, BASE_INCOME, MAX_POP, 0.0, 0.1)
 	queue_p.unit_ready.connect(_on_player_unit_ready)
 	queue_e.unit_ready.connect(_on_enemy_unit_ready)
 	match_mgr.game_over.connect(_on_game_over)
@@ -555,6 +556,52 @@ func spawn_unit(def: UnitDefinition, player_flag: bool, pos: Vector3) -> RTSUnit
 	return u
 
 
+## Phase 2.7: Ironstride walker production. VisualWalker is code-built
+## (no .tscn), so it gets its own spawn path mirroring spawn_unit's
+## wiring (pop return, FX hooks, selection cleanup) with duck-typed
+## handlers. Walkers use straight steering (nav-independent), so the
+## spawn slot only needs map bounds clamping.
+func spawn_walker(player_flag: bool, pos: Vector3) -> VisualWalker:
+	var w := VisualWalker.new()
+	w.name = "%sWalker" % ["P" if player_flag else "E"]
+	w.setup(player_flag, WalkerDef)
+	units_root.add_child(w)
+	w.global_position = map_nav.clamp_inside(pos)
+	w.always_show_hp = true
+	w.guard_pos = w.global_position
+	var yaw_to := Vector3.ZERO - w.global_position
+	if yaw_to.length() > 0.01:
+		w.rotation.y = atan2(yaw_to.x, yaw_to.z)
+	w.died.connect(_on_walker_died)
+	w.damaged.connect(_on_walker_damaged)
+	w.fired.connect(_on_walker_fired)
+	return w
+
+
+func _on_walker_died(walker: VisualWalker) -> void:
+	var pop_cost := WalkerDef.supply_cost
+	if walker.is_player:
+		kills_by_enemy += 1
+		economy_p.on_unit_died(pop_cost)
+	else:
+		kills_by_player += 1
+		economy_e.on_unit_died(pop_cost)
+	MatchFX.death(fx_root, walker.global_position, walker.is_player)
+	if selection != null and selection.selected.has(walker):
+		selection.selected.erase(walker)
+		walker.set_selected(false)
+
+
+func _on_walker_damaged(walker: VisualWalker) -> void:
+	if walker.is_alive():
+		MatchFX.hit(fx_root, walker.global_position, walker.is_player)
+
+
+func _on_walker_fired(walker: VisualWalker, target_pos: Vector3) -> void:
+	if walker != null and is_instance_valid(walker):
+		MatchFX.muzzle(fx_root, target_pos, walker.is_player)
+
+
 func _spawn_initial_army(player_flag: bool) -> void:
 	var base := PLAYER_BASE_POS if player_flag else ENEMY_BASE_POS
 	var foe := ENEMY_BASE_POS if player_flag else PLAYER_BASE_POS
@@ -604,7 +651,12 @@ func _produce_ready(def: UnitDefinition, player_flag: bool) -> void:
 	if hq == null or not hq.is_alive():
 		return
 	eco.on_unit_completed(def.supply_cost)
-	var u := spawn_unit(def, player_flag, _find_spawn(hq.global_position, _rally_dir(player_flag)))
+	var spawn_pos := _find_spawn(hq.global_position, _rally_dir(player_flag))
+	var u: Node3D = null
+	if def.id == &"gf_walker":
+		u = spawn_walker(player_flag, spawn_pos)
+	else:
+		u = spawn_unit(def, player_flag, spawn_pos)
 	MatchFX.production_ready(fx_root, hq.global_position, def.display_name)
 	var dest := Vector3.ZERO
 	if not player_flag and strategist != null:
@@ -686,6 +738,7 @@ func _wire_strategist() -> void:
 	strategist.infantry_def = InfantryDef
 	strategist.marksman_def = MarksmanDef
 	strategist.heavy_def = HeavyDef
+	strategist.walker_def = WalkerDef
 
 
 func _hud() -> CanvasLayer:

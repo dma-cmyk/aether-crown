@@ -11,6 +11,8 @@ enum Plan { BUILD_FORCE, CAPTURE_OUTPOST, DEFEND_OUTPOST, ATTACK_PLAYER_HQ, CAPT
 const THINK_INTERVAL: float = 2.0
 const REISSUE_INTERVAL: float = 12.0
 const CAPTURE_ARMY: int = 4
+# HQ assault threshold counts infantry-equivalents (walkers excluded via
+# _infantry_count below), so walker mixing never self-triggers the attack.
 const ATTACK_ARMY: int = 12
 
 var ai_enabled: bool = true
@@ -33,6 +35,9 @@ var district_saving: bool = false # Phase 2C: set by the 2C map while the enemy 
 var infantry_def: UnitDefinition
 var marksman_def: UnitDefinition
 var heavy_def: UnitDefinition
+## Phase 2.7: Ironstride. Optional — maps that don't wire it simply skip
+## walker production (null guard in _pick_production).
+var walker_def: UnitDefinition
 
 var _think_left: float = 2.0
 var _reissue_left: float = REISSUE_INTERVAL
@@ -78,6 +83,12 @@ func army() -> Array:
 		var u := o as RTSUnit
 		if u != null and u.is_alive() and not u.is_player:
 			force.append(u)
+	# Phase 2.7: enemy walkers join the army (orders go through the same
+	# duck-typed OrderManager path; composition counts stay infantry-based
+	# so the AI never spams walkers).
+	for w in get_tree().get_nodes_in_group("visual_walkers"):
+		if bool((w as Node).call("is_alive")) and not bool((w as Node).get("is_player")):
+			force.append(w)
 	return force
 
 
@@ -116,22 +127,27 @@ func _decide_city(force: Array) -> int:
 	if player_hq != null and not player_hq.is_alive():
 		return Plan.ATTACK_PLAYER_HQ
 	var n := force.size()
-	if n >= ATTACK_ARMY:
+	# Phase 2.7: walker-inclusive army weight. Walkers fight but the plan
+	# thresholds keep meaning "infantry battalion", not "one heavy walker".
+	var infantry_count := _infantry_count(force)
+	if infantry_count >= ATTACK_ARMY:
 		target_city = null
 		return Plan.ATTACK_PLAYER_HQ
 	var defend := _threatened_own_city()
-	if defend != null and n < CAPTURE_ARMY:
+	if defend != null and infantry_count < CAPTURE_ARMY:
 		target_city = defend
 		return Plan.DEFEND_CITY
 	# Behind on cities with a weak army: consolidate at the nearest owned
-	# city instead of feeding units into defended captures.
-	if n < 6 and _city_score() < 0:
+	# city instead of feeding units into defended captures. Threshold uses
+	# the infantry-sized force (walkers add weight but do not trigger the
+	# turtle on their own).
+	if infantry_count < 6 and _city_score() < 0:
 		var home := _nearest_own_city()
 		if home != null:
 			target_city = home
 			return Plan.DEFEND_CITY
 	var target := _pick_city_target()
-	if target != null and n >= CAPTURE_ARMY:
+	if target != null and infantry_count >= CAPTURE_ARMY:
 		target_city = target
 		return Plan.CAPTURE_CITY
 	if defend != null:
@@ -139,6 +155,16 @@ func _decide_city(force: Array) -> int:
 		return Plan.DEFEND_CITY
 	target_city = null
 	return Plan.BUILD_FORCE
+
+
+## Infantry-equivalent army size: RTSUnits only. Walkers stay out of plan
+## thresholds so 1-2 heavy walkers never fake a full battalion.
+func _infantry_count(force: Array) -> int:
+	var count := 0
+	for u in force:
+		if not (u is VisualWalker):
+			count += 1
+	return count
 
 
 ## Own (ENEMY) city with enemy presence inside: needs defenders.
@@ -227,9 +253,16 @@ func _execute_plan(force: Array) -> void:
 		return
 	var calm: Array = []
 	for u in force:
-		var unit := u as RTSUnit
-		if unit != null and (unit.state == RTSUnit.State.IDLE or unit.state == RTSUnit.State.MOVING):
-			calm.append(unit)
+		# Walkers have no state enum; they are re-ordered when idle
+		# (no active order). RTSUnits keep the state gate.
+		if u is RTSUnit:
+			var unit := u as RTSUnit
+			if unit.state == RTSUnit.State.IDLE or unit.state == RTSUnit.State.MOVING:
+				calm.append(unit)
+		elif u is VisualWalker:
+			var w := u as VisualWalker
+			if not w.has_move_order and not w.attack_moving and w.forced_target == null:
+				calm.append(w)
 	if calm.is_empty():
 		return
 	orders.issue_attack_move(calm, dest)
@@ -284,13 +317,46 @@ func _pick_production(force: Array) -> UnitDefinition:
 				heavies += 1
 			elif unit.definition.id == &"gf_marksman":
 				marksmen += 1
+	# Walkers are capped against the infantry-sized force (walkers stay out
+	# of rts_units): at most 1 per 6, and they cost Aether, so the AI still
+	# fields infantry/marksman/heavy around them. The AI only saves toward
+	# a walker once it already owns a city (aether line + expansion done).
+	if walker_def != null and force.size() >= 7 and _owns_city():
+		var walkers := 0
+		for w in get_tree().get_nodes_in_group("visual_walkers"):
+			if not bool((w as Node).get("is_player")) and bool((w as Node).call("is_alive")):
+				walkers += 1
+		if walkers * 6 < force.size() - walkers:
+			if _can_pay(walker_def):
+				return walker_def
 	if heavy_def != null and force.size() >= 4 and heavies * 3 < force.size():
-		if economy.can_afford(float(heavy_def.cost_metal)) and economy.can_house(heavy_def.supply_cost, queue.queued_pop()):
+		if _can_pay(heavy_def):
 			return heavy_def
 	if marksman_def != null and marksmen * 2 < force.size():
-		if economy.can_afford(float(marksman_def.cost_metal)) and economy.can_house(marksman_def.supply_cost, queue.queued_pop()):
+		if _can_pay(marksman_def):
 			return marksman_def
 	if infantry_def != null:
-		if economy.can_afford(float(infantry_def.cost_metal)) and economy.can_house(infantry_def.supply_cost, queue.queued_pop()):
+		if _can_pay(infantry_def):
 			return infantry_def
 	return null
+
+
+## True once the enemy owns at least one city: gates walker saving so the
+## AI expands and secures an aether line before heavy-unit tech.
+func _owns_city() -> bool:
+	for c in cities:
+		var city := c as RTSCity
+		if city != null and city.owner_side == RTSCity.Owner.ENEMY:
+			return true
+	return false
+
+
+## Wallet + supply check shared by every production pick (Phase 2.7:
+## aether was previously only enforced at try_enqueue, so the AI could
+## pick an aether unit it could never afford and stall production).
+func _can_pay(def: UnitDefinition) -> bool:
+	if not economy.can_afford(float(def.cost_metal)):
+		return false
+	if economy.aether < float(def.cost_aether):
+		return false
+	return economy.can_house(def.supply_cost, queue.queued_pop())

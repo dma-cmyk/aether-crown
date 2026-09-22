@@ -230,6 +230,9 @@ text = "Marksman"
 [node name="BtnHev" type="Button" parent="SelPanel/SelVBox/ProdRow"]
 text = "Heavy"
 
+[node name="BtnWal" type="Button" parent="SelPanel/SelVBox/ProdRow"]
+text = "Walker"
+
 [node name="ProdStatus" type="Label" parent="SelPanel/SelVBox"]
 text = ""
 

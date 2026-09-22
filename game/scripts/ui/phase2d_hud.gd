@@ -53,6 +53,7 @@ func _ready() -> void:
 	($SelPanel/SelVBox/ProdRow/BtnInf as Button).pressed.connect(_produce.bind(0))
 	($SelPanel/SelVBox/ProdRow/BtnMar as Button).pressed.connect(_produce.bind(1))
 	($SelPanel/SelVBox/ProdRow/BtnHev as Button).pressed.connect(_produce.bind(2))
+	($SelPanel/SelVBox/ProdRow/BtnWal as Button).pressed.connect(_produce.bind(3))
 	($EndOverlay/Center/EndVBox/RestartButton as Button).pressed.connect(_on_restart)
 	($DistrictBox/CityRow/BtnW as Button).pressed.connect(_mgmt_select.bind("west_foundry"))
 	($DistrictBox/CityRow/BtnN as Button).pressed.connect(_mgmt_select.bind("north_relay"))
@@ -79,10 +80,12 @@ func setup(map_node: Node3D) -> void:
 		map_node.InfantryDef as UnitDefinition,
 		map_node.MarksmanDef as UnitDefinition,
 		map_node.HeavyDef as UnitDefinition,
+		map_node.WalkerDef as UnitDefinition,
 	]
 	($SelPanel/SelVBox/ProdRow/BtnInf as Button).text = "Infantry (%d)" % _defs[0].cost_metal
 	($SelPanel/SelVBox/ProdRow/BtnMar as Button).text = "Marksman (%dM/%dA)" % [_defs[1].cost_metal, _defs[1].cost_aether]
 	($SelPanel/SelVBox/ProdRow/BtnHev as Button).text = "Heavy (%dM/%dA)" % [_defs[2].cost_metal, _defs[2].cost_aether]
+	($SelPanel/SelVBox/ProdRow/BtnWal as Button).text = "Walker (%dM/%dA)" % [_defs[3].cost_metal, _defs[3].cost_aether]
 	var ind := map_node.IndustryDef as DistrictDefinition
 	var mil := map_node.MilitaryDef as DistrictDefinition
 	var aew := map_node.AetherWorksDef as DistrictDefinition
@@ -209,7 +212,7 @@ func _refresh_selection() -> void:
 	for u in _sel.selected:
 		if u is RTSBuilding:
 			hq = u as RTSBuilding
-		elif u is RTSUnit:
+		elif u is RTSUnit or u is VisualWalker:
 			units += 1
 	if hq != null:
 		_hq_selected = hq
@@ -218,12 +221,15 @@ func _refresh_selection() -> void:
 		_prod_row.visible = true
 		_refresh_production()
 	elif units > 0:
-		var first := _sel.selected[0] as RTSUnit
+		var first: Node = _sel.selected[0]
 		var uname := "Unit"
 		var utype := ""
-		if first != null and first.definition != null:
-			uname = first.definition.display_name
-			utype = str(first.definition.id)
+		if first is RTSUnit and (first as RTSUnit).definition != null:
+			uname = (first as RTSUnit).definition.display_name
+			utype = str((first as RTSUnit).definition.id)
+		elif first is VisualWalker:
+			uname = "Ironstride Walker"
+			utype = "gf_walker"
 		_sel_title.text = "%s x%d" % [uname, units]
 		_sel_info.text = "Avg HP %d%%  Type: %s" % [int(_sel.selected_avg_hp() * 100.0), utype]
 		_prod_row.visible = false
@@ -278,6 +284,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				_produce(1)
 			KEY_3:
 				_produce(2)
+			KEY_4:
+				_produce(3)
 
 
 func toast(message: String) -> void:

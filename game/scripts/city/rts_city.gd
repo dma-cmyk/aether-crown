@@ -97,15 +97,17 @@ func _process(delta: float) -> void:
 func _capture_tick(dt: float) -> void:
 	var players := 0
 	var enemies := 0
-	for o in get_tree().get_nodes_in_group("rts_units"):
-		var u := o as RTSUnit
-		if u == null or not u.is_alive():
+	# Phase 2.7: walkers also contest/capture cities (they stay out of
+	# rts_units by design, so they are counted from their own group).
+	for o in get_tree().get_nodes_in_group("rts_units") + get_tree().get_nodes_in_group("visual_walkers"):
+		var u := o as Node3D
+		if u == null or not bool(u.call("is_alive")):
 			continue
 		var dx := u.global_position.x - global_position.x
 		var dz := u.global_position.z - global_position.z
 		if dx * dx + dz * dz > capture_radius * capture_radius:
 			continue
-		if u.is_player:
+		if bool(u.get("is_player")):
 			players += 1
 		else:
 			enemies += 1

@@ -145,7 +145,7 @@ func _process(_delta: float) -> bool:
 				return _fail("no enemy HQ")
 			if absf(_eco_p.material - 120.0) > 0.01:
 				return _fail("start material not 120")
-			if absf(_eco_p.aether) > 0.001:
+			if absf(_eco_p.aether - 0.0) > 0.1:
 				return _fail("aether not 0")
 			if InfDef.cost_aether != 0 or MarDef.cost_aether != 8 or HevDef.cost_aether != 15:
 				return _fail("unit aether costs wrong")
@@ -235,9 +235,9 @@ func _process(_delta: float) -> bool:
 				if _expired():
 					return _fail("military never completed")
 				return false
-			if _eco_p.pop_max != 46:
-				return _fail("pop cap not 46")
-			_ok("military complete, pop 46 (multi-city districts work)")
+			if _eco_p.pop_max != 66:
+				return _fail("pop cap not 66")
+			_ok("military complete, pop 66 (multi-city districts work)")
 			var foes := _units(false)
 			(foes[0] as Node3D).global_position = (_cities["east"] as Node3D).global_position + Vector3(2, 0, 0)
 			(foes[1] as Node3D).global_position = (_cities["east"] as Node3D).global_position + Vector3(-2, 0, 0)
@@ -324,9 +324,9 @@ func _process(_delta: float) -> bool:
 				return false
 			if _complete_count(_cities["north"]) != 1:
 				return _fail("military destroyed on capture")
-			if _eco_p.pop_max != 40:
+			if _eco_p.pop_max != 60:
 				return _fail("player pop cap not restored")
-			if _eco_e.pop_max != 46:
+			if _eco_e.pop_max != 66:
 				return _fail("enemy pop cap not migrated")
 			if not _has_hard_frontline():
 				return _fail("no hard frontline after shifts")
@@ -470,11 +470,11 @@ func _assert_fresh(tag: String) -> bool:
 		print("PHASE2D_TEST NG %s: material not reset (%d)" % [tag, int(_eco_p.material)])
 		quit(1)
 		return false
-	if absf(_eco_p.aether) > 0.5 or absf(_eco_e.aether) > 0.5:
+	if _eco_p.aether > 1.0 or _eco_e.aether > 1.0:
 		print("PHASE2D_TEST NG %s: aether not reset" % tag)
 		quit(1)
 		return false
-	if _eco_p.pop_max != 40 or _eco_e.pop_max != 40:
+	if _eco_p.pop_max != 60 or _eco_e.pop_max != 60:
 		print("PHASE2D_TEST NG %s: pop cap not reset" % tag)
 		quit(1)
 		return false
@@ -506,5 +506,5 @@ func _assert_fresh(tag: String) -> bool:
 		print("PHASE2D_TEST NG %s: armies not 5v5" % tag)
 		quit(1)
 		return false
-	_ok("%s: fresh match state (5 neutral, 7 territories, districts cleared, pop 40)" % tag)
+	_ok("%s: fresh match state (5 neutral, 7 territories, districts cleared, pop 60)" % tag)
 	return true

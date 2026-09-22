@@ -72,6 +72,8 @@ var _cooldown: float = 0.0
 var _scan_left: float = 0.0
 var _stuck_time: float = 0.0
 var _last_order_dist: float = -1.0
+var _slide_dir := Vector3.ZERO
+var _slide_left: float = 0.0
 var _muzzle: Node3D = null
 var _fx_root: Node3D = null
 
@@ -465,9 +467,27 @@ func _steer_toward(dest: Vector3, delta: float) -> void:
 		move_and_slide()
 		return
 	var dir := to.normalized()
-	velocity = Vector3(dir.x * move_speed, 0.0, dir.z * move_speed)
+	# Obstacle slide (Phase 2.7): straight steering pins the walker on
+	# circular blockers (city/HQ/rock collisions). Blending a tangent that
+	# follows the contact normal lets it walk around instead of stalling —
+	# the same "slide along the wall" players expect, without full navmesh.
+	var blended := dir
+	if _slide_left > 0.0:
+		_slide_left -= delta
+		blended = (dir + _slide_dir * 0.9).normalized()
+	elif is_on_wall():
+		var n := get_wall_normal()
+		n.y = 0.0
+		if n.length() > 0.1:
+			var tangent := Vector3(-n.z, 0.0, n.x).normalized()
+			if tangent.dot(dir) < 0.0:
+				tangent = -tangent
+			_slide_dir = tangent
+			_slide_left = 0.4
+			blended = (dir + tangent * 0.9).normalized()
+	velocity = Vector3(blended.x * move_speed, 0.0, blended.z * move_speed)
 	move_and_slide()
-	_face(dir, delta)
+	_face(blended, delta)
 
 
 func _face(dir: Vector3, delta: float) -> void:
