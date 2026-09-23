@@ -48,6 +48,12 @@ const PRESETS: Array = [
 	{"name": "12_walker_traversal_scale", "target": Vector3(18, 8, 0), "dist": 28.0, "pitch": 25.0, "yaw": -45.0},
 	{"name": "13_terrain_only_isometric", "target": Vector3(0, 8, 0), "dist": 135.0, "pitch": 48.0, "yaw": -40.0},
 	{"name": "14_three_routes_top_debug", "target": Vector3(0, 8, 0), "dist": 185.0, "pitch": 88.0, "yaw": -45.0},
+	{"name": "15_material_overview", "target": Vector3(0, 8, 0), "dist": 125.0, "pitch": 46.0, "yaw": -42.0},
+	{"name": "16_grass_dirt_transition", "target": Vector3(-16, 9, -10), "dist": 32.0, "pitch": 38.0, "yaw": -35.0},
+	{"name": "17_cliff_surface", "target": Vector3(18, 5, -8), "dist": 35.0, "pitch": 28.0, "yaw": -60.0},
+	{"name": "18_central_surface", "target": Vector3(-6, 8, 0), "dist": 38.0, "pitch": 32.0, "yaw": -40.0},
+	{"name": "19_fortress_surface", "target": Vector3(36, 12, 18), "dist": 40.0, "pitch": 34.0, "yaw": -48.0},
+	{"name": "20_rts_distance_material", "target": Vector3(-8, 8, 0), "dist": 65.0, "pitch": 48.0, "yaw": -45.0},
 ]
 
 @onready var rig: Node3D = $CameraRig
@@ -218,9 +224,9 @@ func apply_preset(idx: int) -> void:
 	_update_camera()
 
 	if label_preset != null:
-		label_preset.text = "Preset [%d/14]: %s" % [idx + 1, p["name"]]
+		label_preset.text = "Preset [%d/20]: %s" % [idx + 1, p["name"]]
 	if label_stats != null:
-		label_stats.text = "Terrain: 140x140m | 19,881 verts | 39,200 tris | Iris Xe Optimized\nKeys: 1-9, 0, J, K, L, M (Presets) | C (Capture All) | H (HUD)"
+		label_stats.text = "Terrain: 140x140m | 19,881 verts | 39,200 tris | Iris Xe Optimized\nPBR Textures: 4 Sets (1024x1024) | Keys: 1-9, 0, J, K, etc. | C (Capture All)"
 
 
 func _update_camera() -> void:

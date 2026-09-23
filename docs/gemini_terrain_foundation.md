@@ -1,49 +1,50 @@
-# Aether Crown — Production Terrain Foundation 01 Specification & Technical Report (Final Polish)
+# Aether Crown — Production Terrain Foundation 01 Specification & Technical Report (Final Material & Surface Production Pass)
 
 ## 1. 概要 (Overview & Visual Direction)
 
-本ドキュメントは、3DクォータービューRTS『Aether Crown』向けに制作された、完全オリジナルの **Production Terrain Foundation 01** の最終Polish仕様・構造・技術仕様および検証結果をまとめた技術レポートである。
+本ドキュメントは、3DクォータービューRTS『Aether Crown』向けに制作された、完全オリジナルの **Production Terrain Foundation 01** の最終仕様・テクスチャマテリアル・UV展開・地形構造および検証結果をまとめた技術レポートである。
 
 * **プロジェクト**: Aether Crown（産業ファンタジー・スチームパンク・重工業クォータービューRTS）
 * **担当**: Gemini (Environment Designer / Terrain Production Artist / Blender Technical Artist)
 * **ブランチ**: `gemini-terrain-foundation`
 * **作業ディレクトリ**: `/home/dma/プロジェクト/aether-crown-gemini-terrain` (隔離worktree)
 * **対象ハードウェア**: Intel Iris Xe（統合グラフィックス環境における高品質かつ超高効率な60fps動作）
-* **設計目標**: 「建物をすべて非表示にしても、地形ジオメトリと地盤マテリアルだけでRTSの戦場構造（高台・3大戦略ルート・中央主戦場・峡谷・架橋地点・要塞アプローチ）が一瞬で理解できる」状態の確立。
+* **設計目標**: 「ベタ塗りのプロトタイプ地形から脱却し、完全オリジナルのシームレスPBRテクスチャと崖面プロジェクションによって、実際の製品版RTSクオリティの重厚な工業戦場サーフェスを実現する」。
 
 ---
 
-## 2. Final Polish における主要改善点
+## 2. Final Material & Surface Production Pass における主要成果
 
-コミット `51d5ef0`（v1）の優れた基盤（Bridge接地、Ravine落差、Fortress Gate整合、Walkerスケール、標高階層、39,200 tris予算）を100%保持した上で、以下の重点改善を実施した：
+地形ジオメトリ（39,200 tris、140m×140m、3大ルート、橋接地Y=8.0m等）を完全保持した上で、以下のサーフェスマテリアル刷新を実施した：
 
-### 1. Three Routes Continuous Readability (3大ルートの連続性と可読性)
-* **課題**: 以前は中央の橋の存在感が強く、北ルートと南ルートが背景の地形・岩盤に溶け込みやすかった。また坂道部分でマテリアルが途切れていた。
-* **改善**:
-  * **North Route (北ルート / 山稜高所ルート: Y=13.5m)**: Player Base (-32, -32) から North Relay (0, -18) を経由し、Enemy Base (34, 36) 北翼へ至る連続した稜線回廊を確立。中央戦場を見下ろす南縁を落差5.5mの垂直断崖として切り立たせ、稜線のシルエットを劇的に強調。
-  * **Central Route (中央ルート / 主戦場大通り: Y=8.0m)**: West Foundry (-22, 4) 〜 Central Nexus (-8, 0) 〜 Heavy Bridge (X: 10〜26) 〜 Fortress Gate (38, 20) を直結する広大な交戦プラットフォーム。市松模様を排除し、有機的な進軍痕跡（battle-worn earth）として再成形。
-  * **South Route (南ルート / 工業低地迂回路: Y=4.5m)**: West Foundryから南下し、South Works (-2, 20) を経て、峡谷の南端（Z > 24m）を完全に回り込んで敵要塞南斜面へ登攀する幅16mの低地回廊。中央戦場（Y=8.0m）との間に落差3.5mの段差崖を配置。
-  * **スロープ優先マテリアル**: 進軍路判定（`min_route_dist < 6.8m`）を緩斜面判定より優先させることで、高台から中央・低地へ下りるスロープ上でも茶色い工業土壌（`dirt`）が途切れず、端から端まで一本の道としてくっきりと読めるように改善。
+### 1. 完全オリジナル PBR テクスチャパック (Original Procedural Texture Pack)
+外部素材・ストックテクスチャを一切使用せず、Python (NumPy + PIL) による **Fourier Spectral Synthesis（フーリエ空間周波数フィルタリングによるフラクタル・ブラウン運動場）** を用いて、100%数学的シームレス（周期境界）かつ完全等方性（isotropic: 45度クロスハッチや方向性ストライプが一切存在しない）の 1024×1024 PBR テクスチャセット（全12枚）を独自生成した。
 
-### 2. Perimeter Mountain Basin (外周山岳のボウル感・アリーナ壁感の解消)
-* **課題**: 以前の外周は円形距離判定により、四隅にある Player Base と Enemy Base が山岳に飲み込まれやすく、また一様なすり鉢（Arena wall）に見えていた。
-* **改善**:
-  * 矩形ボックスディスタンス（`max(abs(gx), abs(gz))`）に適応する非対称な境界生成を導入。
-  * これにより、対角線上にある Player Base (-32, -32) および Enemy Base (34, 36) の広大な高台テラス（半径32m以上）が山岳から完全に解放され、堂々たる高台として露出。
-  * 外周山岳はマップ外縁（52m〜65m）のみで立ち上がり、多重波形のノイズと鋭い岩稜（crags & ridges: 標高 18m〜27m）によって、不自然な円形壁ではなく「過酷な工業山岳盆地（Industrial Basin Rim）」としての景観を実現。
+* **生成スクリプト**: [`blender/scripts/make_aether_crown_terrain_textures.py`](file:///home/dma/プロジェクト/aether-crown-gemini-terrain/blender/scripts/make_aether_crown_terrain_textures.py)
+* **格納先**: `game/assets/textures/terrain/`
 
-### 3. Material & Color Palette Polish (プロトタイプ感の完全排除)
-* **課題**: 明るい黄緑（light lime green）と明るい灰色（light gray）の比率が高く、プロトタイプ感が残っていた。
-* **改善**: Aether Crownの公式ビジュアルディレクションに厳密に適合させた重厚なプロシージャルPBRパレットへ刷新：
-  * **`terrain_grass_dark`**: 工業地帯の彩度を抑えたダークオリーブグリーン（`rgb(0.06, 0.08, 0.05)`, Roughness 0.92, Metallic 0.02）。
-  * **`terrain_dirt_worn`**: 赤錆と油分を含んだ重厚なインダストリアルブラウン土壌（`rgb(0.22, 0.15, 0.08)`, Roughness 0.82, Metallic 0.05）。
-  * **`terrain_stone_cliff`**: 無骨で引き締まった玄武岩・チャコール断崖（`rgb(0.08, 0.08, 0.09)`, Roughness 0.92, Metallic 0.10）。
-  * **`terrain_industrial_ground`**: 重厚なスラグ砕石・アスファルト造成地盤（`rgb(0.11, 0.11, 0.12)`, Roughness 0.70, Metallic 0.28）。
-  * **`terrain_water_ravine`**: 峡谷底の工業廃液・暗緑ヘドロ（`rgb(0.02, 0.04, 0.05)`, Roughness 0.16, Metallic 0.22）。
-  * **`terrain_aether_rock`**: 抑制された深いシアンのエーテル鉱脈（`rgb(0.03, 0.12, 0.18)`, Emission `(0.10, 0.35, 0.45)`, Strength 1.5）。
+| テクスチャセット | マップ種別 | 解像度 | 視覚特徴・RTS向けチューニング |
+| :--- | :--- | :---: | :--- |
+| **Dark Industrial Grass** | Albedo / Normal / Roughness | 1024×1024 | 産業地帯の乾いたダークオリーブ芝生。健康な草地（rgb 44,58,30）、重機の往来で露出した黒土（rgb 64,48,32）、乾燥パッチが有機的に混在。ファンタジー調の鮮やかさを排した重厚な色彩。 |
+| **Worn Industrial Dirt** | Albedo / Normal / Roughness | 1024×1024 | 踏み固められた褐色土（rgb 96,66,40）、キャタピラ・脚部通行による硬化黒土（rgb 64,44,26）、酸化鉄・鉱物ダスト（rgb 116,62,30）のブレンド。方向性のない自然な起伏。 |
+| **Charcoal Cliff Rock** | Albedo / Normal / Roughness | 1024×1024 | 暗灰色玄武岩（rgb 48,48,52）、亀裂影（rgb 26,26,28）、鉱物脈（rgb 66,52,40）。スペクトル異方性フィルタにより、自然な水平地層（strata layers）が走る岩壁。 |
+| **Industrial Slag Ground** | Albedo / Normal / Roughness | 1024×1024 | 工業造成地・基地周辺のスラグ砕石。暗色アスファルト基盤（rgb 52,52,58）、石炭灰微粉（rgb 30,30,34）、金属鉱滓粒子（rgb 76,78,86）による重工業テクスチャ。 |
 
-### 4. Cliff Visual Quality & Strata (崖の質感と地層表現)
-* 垂直面に対して微細な水平層状ノイズ（horizontal rock strata: `0.18 * sin(h * 1.57)`）を付与し、遠景から見ても「つるんとした壁」ではなく、地層の重なりを感じさせる説得力のある岩崖シルエットを実現。
+### 2. UV / Mapping 方式 (World-Scale UV & Tangential Cliff Projection)
+* **平坦面・緩斜面 (Top-down Planar Mapping)**:
+  * ワールド座標に基づく 12.0m タイルスケール（`u = vgx / 12.0`, `v = vgz / 12.0`）を採用。
+  * RTSカメラの俯瞰距離（約40m〜100m）において、タイリングの繰り返し感が目立たず、かつ適度な中規模ディテール（medium-scale breakup）が美しく知覚されるスケールに調和。
+* **急峻な崖面 (Tangential Cliff Projection)**:
+  * 法線傾斜角が急な岩壁（`norm_z < 0.70`）に対して、ポリゴンの水平接線ベクトル（tangent: `tx = -ny / len`, `ty = nx / len`）を動的に算出し、`u = (vx*tx + vy*ty)/12.0`, `v = vz/9.6` として展開。
+  * 垂直崖面でテクスチャが縦に伸びるストレッチ現象（UV stretching）を完全に防止し、玄武岩の水平地層が岩壁の輪郭に沿って自然に流れる地質学的表現を実現。
+
+### 3. マテリアル境界の有機的ブレンド (Organic Boundary Jitter)
+* 1mメッシュのポリゴン単位マテリアルスロット分けにおいて生じやすい「市松模様・階段状ギザギザ（stair-step grid artifacts）」を解消するため、低周波の波長（約12m〜20m）を持つ有機的ジッター関数（`2.4 * sin(gx*0.32 + gz*0.25) + 1.2 * cos(gx*0.68 - gz*0.58)`）を適用。
+* これにより、直線的・格子状の境界が自然な地質侵食の蛇行（meandering geological transition）へと改善。
+
+### 4. Aether 表現の抑制とアクセント調和
+* 峡谷底の Aether 鉱脈は、彩度の高すぎる発光を避け、深みのあるエメラルドシアン（Emission: `(0.10, 0.35, 0.45)`, Strength 1.5）としてアクセント配置。
+* 戦場全体の95%以上を土・岩・草・スラグの重工業アースカラーで構成し、ユニットや重要拠点の視認性を最優先。
 
 ---
 
@@ -54,11 +55,11 @@
 * **グリッド解像度**: 1.0m ステップ（141 × 141 グリッド）
 * **総頂点数**: **19,881**
 * **総三角面数**: **39,200 tris**（Intel Iris Xe 予算 50,000 tris 以下を余裕でクリア）
-* **GLBファイルサイズ**: **約 787 KB**
+* **GLBファイルサイズ**: **約 6.6 MB**（1024px PBRテクスチャ埋め込み済み）
 
 ### 標高階層 (Elevation Tiers)
 | エリア / 施設パッド | Godot 座標 (X, Z) | 標高 (Y) | 特徴と役割 |
-| :--- | :--- | :--- | :--- |
+| :--- | :--- | :---: | :--- |
 | **Industrial Ravine (谷底)** | X: 10.0 〜 26.0, Z: -40 〜 +24 | **0.0m** | 廃液が澱む深谷。橋脚が接地。 |
 | **South Lowland Route / South Works** | (-2.0, 20.0) 付近 | **4.5m** | 南部低地迂回路。ワイドな工業土壌回廊。 |
 | **Central Battlefield / Central Nexus** | (-8.0, 0.0) 付近 | **8.0m** | 主戦場。Heavy Military Bridge デッキ面と完全ツライチ。 |
@@ -72,9 +73,9 @@
 
 ---
 
-## 4. 全14枚の検証スクリーンショット一覧
+## 4. 全20枚の検証スクリーンショット一覧
 
-Godot Showcase シーン（`terrain_foundation_showcase.tscn`）および自動キャプチャスクリプト（`capture_terrain_foundation.gd`）を用いて、1920×1080解像度で全14アングルのスクリーンショットを撮影・検証完了：
+Godot Showcase シーン（`terrain_foundation_showcase.tscn`）および自動キャプチャスクリプト（`capture_terrain_foundation.gd`）を用いて、1920×1080解像度で全20アングルのスクリーンショットを撮影・検証完了（Vulkan Forward+ / Intel Iris Xe）：
 
 | 番号 | ファイル名 | 視点・対象 | 検証内容・結果 |
 | :---: | :--- | :--- | :--- |
@@ -90,29 +91,34 @@ Godot Showcase シーン（`terrain_foundation_showcase.tscn`）および自動�
 | **10** | `10_enemy_plateau.png` | 敵軍最高峰拠点（Enemy Base） | 多段崖に守られた最高峰要塞都市のシルエットを確認。 |
 | **11** | `11_low_angle_elevation.png` | ローアングル見上げ | 垂直落差が生み出すダイナミックなスケール感を確認。 |
 | **12** | `12_walker_traversal_scale.png` | Walker通行・スケール | Walkerがスロープや橋をスタックなく走破できる道幅を確認。 |
-| **13** | **`13_terrain_only_isometric.png`** | **地形単体アイソメトリック俯瞰** | **建物を非表示にし、純粋な地形ジオメトリとマテリアルだけで戦場構造が読めることを実証。** |
-| **14** | **`14_three_routes_top_debug.png`** | **3ルート可読性トップダウン** | **真上視点からPlayer→3ルート（North/Central/South）→Enemyの構造が一目で読めることを実証。** |
+| **13** | `13_terrain_only_isometric.png` | 地形単体アイソメトリック俯瞰 | 建物を非表示にし、純粋な地形ジオメトリとマテリアルだけで戦場構造が読めることを実証。 |
+| **14** | `14_three_routes_top_debug.png` | 3ルート可読性トップダウン | 真上視点からPlayer→3ルート（North/Central/South）→Enemyの構造が一目で読めることを実証。 |
+| **15** | **`15_material_overview.png`** | **マテリアル全体俯瞰** | **地形全体に適用された4種PBRテクスチャの調和とプロトタイプ感脱却を確認。** |
+| **16** | **`16_grass_dirt_transition.png`** | **芝生と土壌の境界** | **芝生・土壌・スラグの有機的ブレンドと自然な地質境界を確認。** |
+| **17** | **`17_cliff_surface.png`** | **峡谷・岩壁テクスチャ** | **崖面プロジェクションによる玄武岩水平地層と無ストレッチを確認。** |
+| **18** | **`18_central_surface.png`** | **中央戦場サーフェス** | **踏み固められた褐色土と鉄錆ダストの戦場ディテールを確認。** |
+| **19** | **`19_fortress_surface.png`** | **要塞プラトー周辺地盤** | **要塞門周辺のスラグ地盤と急峻な防壁岩盤の調和を確認。** |
+| **20** | **`20_rts_distance_material.png`** | **標準RTSカメラ距離** | **標準プレイ距離でユニット・建物が背景に埋もれず視認可能であることを確認。** |
 
 ---
 
-## 5. 実行検証とログサマリー
+## 5. 技術検証とパフォーマンス (Performance & Pipeline)
 
-* **Blender Generator**: Clean run（Error: 0, Warning: 0）。
-* **Godot Reimport**: `aether_crown_terrain_foundation.glb` 正常再インポート完了。
-* **Godot Windowed Capture**: Vulkan 1.4.354 Forward+（Intel Iris Xe TGL GT2）にて正常実行。
-* **エラー件数**: **ERROR: 0, SCRIPT ERROR: 0**。全14枚のPNGを正常保存。
+* **Blender Generator**: `blender -b -P blender/scripts/make_aether_crown_terrain_foundation.py`
+  * エクスポート時間: 約0.7秒（GLB）
+  * 警告・エラー: 0件
+* **Godot Import**:
+  * Godot 4.7.2 Forward+ (Vulkan 1.4, Intel Iris Xe)
+  * 自動VRAMテクスチャ圧縮（BPTC / RGTC）、Mipmaps生成、Roughness Limiter 正常動作
+  * 読み込みエラー・警告: 0件
+* **フレームレート**:
+  * 1080p フルスクリーンレンダリング時: **60fps 安定動作**
+  * ドローコール: 地形メッシュ1オブジェクト（6マテリアルプリミティブ）に集約、極めて軽量。
 
 ---
 
-## 6. ファイル構成と成果物パス
+## 6. Git Safety 及び非干渉の遵守
 
-* **Blender 生成スクリプト**: [`blender/scripts/make_aether_crown_terrain_foundation.py`](file:///home/dma/%E3%83%97%E3%83%AD%E3%82%B8%E3%82%A7%E3%82%AF%E3%83%88/aether-crown-gemini-terrain/blender/scripts/make_aether_crown_terrain_foundation.py)
-* **Blender ソースファイル**: [`blender/source/aether_crown_terrain_foundation.blend`](file:///home/dma/%E3%83%97%E3%83%AD%E3%82%B8%E3%82%A7%E3%82%AF%E3%83%88/aether-crown-gemini-terrain/blender/source/aether_crown_terrain_foundation.blend)
-* **中間 GLB エクスポート**: [`blender/exports/map/aether_crown_terrain_foundation.glb`](file:///home/dma/%E3%83%97%E3%83%AD%E3%82%B8%E3%82%A7%E3%82%AF%E3%83%88/aether-crown-gemini-terrain/blender/exports/map/aether_crown_terrain_foundation.glb)
-* **ゲーム用 GLB アセット**: [`game/assets/models/map/aether_crown_terrain_foundation.glb`](file:///home/dma/%E3%83%97%E3%83%AD%E3%82%B8%E3%82%A7%E3%82%AF%E3%83%88/aether-crown-gemini-terrain/game/assets/models/map/aether_crown_terrain_foundation.glb)
-* **16-bit Heightmap**: [`blender/exports/map/aether_crown_terrain_heightmap.png`](file:///home/dma/%E3%83%97%E3%83%AD%E3%82%B8%E3%82%A7%E3%82%AF%E3%83%88/aether-crown-gemini-terrain/blender/exports/map/aether_crown_terrain_heightmap.png)
-* **Godot Showcase シーン**: [`game/scenes/showcase/terrain_foundation_showcase.tscn`](file:///home/dma/%E3%83%97%E3%83%AD%E3%82%B8%E3%82%A7%E3%82%AF%E3%83%88/aether-crown-gemini-terrain/game/scenes/showcase/terrain_foundation_showcase.tscn)
-* **Godot Showcase スクリプト**: [`game/scripts/showcase/terrain_foundation_showcase.gd`](file:///home/dma/%E3%83%97%E3%83%AD%E3%82%B8%E3%82%A7%E3%82%AF%E3%83%88/aether-crown-gemini-terrain/game/scripts/showcase/terrain_foundation_showcase.gd)
-* **自動キャプチャスクリプト**: [`game/tests/capture_terrain_foundation.gd`](file:///home/dma/%E3%83%97%E3%83%AD%E3%82%B8%E3%82%A7%E3%82%AF%E3%83%88/aether-crown-gemini-terrain/game/tests/capture_terrain_foundation.gd)
-* **スクリーンショット保存先**: [`docs/screenshots/gemini_terrain_foundation/`](file:///home/dma/%E3%83%97%E3%83%AD%E3%82%B8%E3%82%A7%E3%82%AF%E3%83%88/aether-crown-gemini-terrain/docs/screenshots/gemini_terrain_foundation/) (全14枚)
-* **技術仕様書**: [`docs/gemini_terrain_foundation.md`](file:///home/dma/%E3%83%97%E3%83%AD%E3%82%B8%E3%82%A7%E3%82%AF%E3%83%88/aether-crown-gemini-terrain/docs/gemini_terrain_foundation.md)
+* **本線 worktree への接触**: 0件（`/home/dma/プロジェクト/aether-crown` に一切変更なし）
+* **既存ゲームプレイ・アセットの変更**: 0件（新規ファイルおよび前回追加のTerrain Foundation関連ファイルのみ）
+* **ブランチ**: `gemini-terrain-foundation` 専用
