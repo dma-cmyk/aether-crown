@@ -1,4 +1,4 @@
-"""Generate the Aether Crown RTS Production Terrain Foundation 01.
+"""Generate the Aether Crown RTS Production Terrain Foundation 01 (Final Visual/Topology Polish).
 
 Creates:
 - blender/source/aether_crown_terrain_foundation.blend
@@ -6,15 +6,27 @@ Creates:
 - game/assets/models/map/aether_crown_terrain_foundation.glb
 - blender/exports/map/aether_crown_terrain_heightmap.png
 
-Key Features:
-- Designed specifically for Aether Crown RTS gameplay and visual reference.
-- Clear 3-tier elevation hierarchy (Lowland Ravine -> Central Battlefield -> High Plateaus).
-- Distinct Three Strategic Routes (North mountain ridge, Central major clash, South industrial lowland).
-- Deep industrial ravine with dedicated Heavy Military Bridge slot (8.0m gap & pier foundation).
-- Natural Fortress Approach narrowing towards Fortress Gate plateau.
-- Broad plateau for Player Base & Enemy HQ with ample staging area.
-- Integrated City Pads (West Foundry, North Relay, Central Nexus, South Works, East Bastion).
-- Lightweight & performant for Intel Iris Xe (< 45,000 tris).
+Key Final Polish Enhancements:
+1. THREE ROUTES CONTINUOUS READABILITY:
+   - North: Elevated ridge route (13.5m) with sharp southern cliff dropping to central battlefield.
+     Continuous brown earth corridor connecting Player Base to Enemy Base via North Relay.
+   - Central: Massive open clash platform (8.0m, ~45m x 35m) with organic battle-worn dirt/industrial floor leading directly across Heavy Bridge.
+   - South: Lowland industrial corridor (4.5m) winding around the southern ravine with terraced step.
+   - Route classification takes precedence on traversal ramps so paths stay unbroken from Base to Base.
+2. PERIMETER / CANYON BASIN:
+   - Box-distance adaptive perimeter rim that preserves Player Base (-32,-32) and Enemy Base (34,36)
+     completely free from mountain clipping while forming an organic, craggy basin edge at map borders.
+3. MATERIAL & COLOR PALETTE:
+   - Dark muted grass (industrial fantasy olive)
+   - Industrial brown earth (iron-rich worn path, distinct contrast)
+   - Charcoal rock (stark, dramatic cliffs & crags)
+   - Dark gray constructed ground (compacted staging/foundry ground)
+   - Very restrained cyan Aether (deep glowing mineral seam)
+4. CLIFF STRATA & VISUAL QUALITY:
+   - Subtle rock striation on steep slopes for convincing geological silhouette.
+   - Smooth bridge abutment transitions without harsh cutoffs.
+5. PERFORMANCE:
+   - Exact 140m x 140m scale, 1m grid (19,881 vertices, 39,200 triangles) for Intel Iris Xe.
 """
 
 import math
@@ -59,15 +71,15 @@ FORTRESS_GATE_H = 11.8        # Fortress Gate defensive plateau
 PLAYER_PLATEAU_H = 12.0       # Player HQ high ground
 NORTH_ROUTE_H = 13.5          # North mountain ridge route & North Relay
 ENEMY_PLATEAU_H = 15.5        # Enemy HQ supreme fortress high ground
-PERIMETER_CLIFF_H = 22.0      # Out-of-bounds mountain rim
+PERIMETER_CLIFF_H = 22.0      # Out-of-bounds mountain rim nominal
 
 # Key Godot Locations (X, Z)
 PLAYER_HQ_POS = (-32.0, -32.0)
 ENEMY_HQ_POS = (34.0, 36.0)
 WEST_FOUNDRY_POS = (-22.0, 4.0)
-NORTH_RELAY_POS = (2.0, -18.0)
-CENTRAL_NEXUS_POS = (-12.0, 0.0)
-SOUTH_WORKS_POS = (-2.0, 18.0)
+NORTH_RELAY_POS = (0.0, -18.0)
+CENTRAL_NEXUS_POS = (-8.0, 0.0)
+SOUTH_WORKS_POS = (-2.0, 20.0)
 EAST_BASTION_POS = (26.0, -8.0)
 FORTRESS_GATE_POS = (38.0, 20.0)
 BRIDGE_CENTER_POS = (18.0, 0.0)  # Gap is X: 10 to 26, Bridge Span = 32m (X: 2 to 34), Deck H = 8.0m
@@ -93,11 +105,10 @@ def dist_point_to_segment(px, pz, ax, az, bx, bz):
 
 
 def noise_2d(x, z):
-    # Multi-frequency organic fractal terrain noise
-    n = 0.55 * math.sin(x * 0.14 + z * 0.11)
-    n += 0.32 * math.cos(x * 0.28 - z * 0.22)
-    n += 0.18 * math.sin(x * 0.58 + z * 0.52)
-    n += 0.08 * math.cos(x * 1.25 - z * 1.15)
+    n = 0.52 * math.sin(x * 0.14 + z * 0.11)
+    n += 0.30 * math.cos(x * 0.28 - z * 0.22)
+    n += 0.16 * math.sin(x * 0.58 + z * 0.52)
+    n += 0.07 * math.cos(x * 1.25 - z * 1.15)
     return n
 
 
@@ -114,31 +125,45 @@ def get_terrain_elevation(gx, gz):
     # --------------------------------------------------------------------------
     dp = math.hypot(gx - PLAYER_HQ_POS[0], gz - PLAYER_HQ_POS[1])
     if dp < 34.0:
-        factor_p = 1.0 - smoothstep(16.0, 32.0, dp)
+        factor_p = 1.0 - smoothstep(18.0, 32.0, dp)
         h = h * (1.0 - factor_p) + PLAYER_PLATEAU_H * factor_p
 
     # --------------------------------------------------------------------------
-    # 2. Enemy Fortress Plateau (around 32, 32)
+    # 2. Enemy Fortress Plateau (around 34, 36)
     # --------------------------------------------------------------------------
     de = math.hypot(gx - ENEMY_HQ_POS[0], gz - ENEMY_HQ_POS[1])
-    if de < 30.0:
-        factor_e = 1.0 - smoothstep(14.0, 28.0, de)
+    if de < 34.0:
+        factor_e = 1.0 - smoothstep(18.0, 32.0, de)
         h = max(h, h * (1.0 - factor_e) + ENEMY_PLATEAU_H * factor_e)
 
     # --------------------------------------------------------------------------
     # 3. North Mountain Ridge (High Ground Route: Player Base -> North Relay -> Fortress Flank)
     # --------------------------------------------------------------------------
     north_segs = [
-        (-32.0, -32.0, -14.0, -26.0),
-        (-14.0, -26.0, 2.0, -18.0),
-        (2.0, -18.0, 18.0, -16.0),
-        (18.0, -16.0, 30.0, -8.0),
+        (-32.0, -32.0, -18.0, -26.0),
+        (-18.0, -26.0, 0.0, -18.0),
+        (0.0, -18.0, 16.0, -16.0),
+        (16.0, -16.0, 28.0, -8.0),
+        (28.0, -8.0, 34.0, 6.0),
+        (34.0, 6.0, 34.0, 24.0),
+        (34.0, 24.0, 34.0, 36.0),
     ]
+    min_dn = 999.0
     for ax, az, bx, bz in north_segs:
         d_line, _ = dist_point_to_segment(gx, gz, ax, az, bx, bz)
-        if d_line < 18.0:
-            factor_n = 1.0 - smoothstep(7.0, 16.0, d_line)
-            h = max(h, h * (1.0 - factor_n) + NORTH_ROUTE_H * factor_n)
+        if d_line < min_dn:
+            min_dn = d_line
+
+    if min_dn < 18.0:
+        factor_n = 1.0 - smoothstep(7.0, 15.0, min_dn)
+        h = max(h, h * (1.0 - factor_n) + NORTH_ROUTE_H * factor_n)
+
+    # Sheer cliff on North Route's south boundary overlooking Central Battlefield
+    if -14.0 <= gx <= 18.0 and -16.0 <= gz <= -7.0:
+        cliff_dist_s = gz - (-16.0)
+        if 0.0 <= cliff_dist_s <= 8.5:
+            cliff_f = smoothstep(1.5, 7.0, cliff_dist_s)
+            h = min(h, NORTH_ROUTE_H * (1.0 - cliff_f) + CENTRAL_BATTLEFIELD_H * cliff_f)
 
     # --------------------------------------------------------------------------
     # 4. West Foundry Intermediate Terrace & Base Ramps
@@ -155,40 +180,53 @@ def get_terrain_elevation(gx, gz):
         ramp_h = PLAYER_PLATEAU_H * (1.0 - t_rpw) + WEST_FOUNDRY_H * t_rpw
         h = h * (1.0 - f_rpw) + ramp_h * f_rpw
 
-    # Ramp: West Foundry (-22, 4) to Central Battlefield (0, 0)
-    d_rwc, t_rwc = dist_point_to_segment(gx, gz, -20.0, 4.0, -2.0, 0.0)
+    # Ramp: West Foundry (-22, 4) to Central Battlefield (-8, 0)
+    d_rwc, t_rwc = dist_point_to_segment(gx, gz, -20.0, 4.0, -8.0, 0.0)
     if d_rwc < 16.0:
-        f_rwc = 1.0 - smoothstep(9.0, 15.0, d_rwc)
+        f_rwc = 1.0 - smoothstep(8.5, 14.5, d_rwc)
         ramp_h = WEST_FOUNDRY_H * (1.0 - t_rwc) + CENTRAL_BATTLEFIELD_H * t_rwc
         h = h * (1.0 - f_rwc) + ramp_h * f_rwc
 
     # --------------------------------------------------------------------------
     # 5. Central Nexus Battlefield Flat Arena (around -8, 0)
     # --------------------------------------------------------------------------
-    dc = math.hypot(gx - (-8.0), gz - 0.0)
-    if dc < 26.0:
-        factor_c = 1.0 - smoothstep(16.0, 24.0, dc)
+    dc = math.hypot(gx - CENTRAL_NEXUS_POS[0], gz - CENTRAL_NEXUS_POS[1])
+    if dc < 28.0:
+        factor_c = 1.0 - smoothstep(18.0, 26.0, dc)
         h = h * (1.0 - factor_c) + CENTRAL_BATTLEFIELD_H * factor_c
 
     # --------------------------------------------------------------------------
-    # 6. South Lowland Route (West Foundry -> South Works -> Enemy Base Approach)
+    # 6. South Lowland Route (West Foundry -> South Works -> East Fortress Approach)
     # --------------------------------------------------------------------------
     south_segs = [
-        (-20.0, 6.0, -2.0, 18.0),
-        (-2.0, 18.0, 16.0, 24.0),
-        (16.0, 24.0, 28.0, 28.0),
+        (-22.0, 4.0, -16.0, 14.0),
+        (-16.0, 14.0, -2.0, 20.0),
+        (-2.0, 20.0, 14.0, 26.0),
+        (14.0, 26.0, 26.0, 28.0),
+        (26.0, 28.0, 34.0, 34.0),
+        (34.0, 34.0, 34.0, 36.0),
     ]
+    min_ds = 999.0
     for ax, az, bx, bz in south_segs:
         d_line, _ = dist_point_to_segment(gx, gz, ax, az, bx, bz)
-        if d_line < 18.0:
-            factor_s = 1.0 - smoothstep(8.0, 16.0, d_line)
-            h = h * (1.0 - factor_s) + SOUTH_ROUTE_H * factor_s
+        if d_line < min_ds:
+            min_ds = d_line
+
+    if min_ds < 18.0:
+        factor_s = 1.0 - smoothstep(8.0, 16.0, min_ds)
+        h = h * (1.0 - factor_s) + SOUTH_ROUTE_H * factor_s
 
     # Flatten South Works city pad
     ds = math.hypot(gx - SOUTH_WORKS_POS[0], gz - SOUTH_WORKS_POS[1])
     if ds < 15.0:
         factor_sw = 1.0 - smoothstep(8.0, 14.0, ds)
         h = h * (1.0 - factor_sw) + SOUTH_ROUTE_H * factor_sw
+
+    # Terraced step cliff between Central Battlefield (Y=8.0m) and South Route (Y=4.5m)
+    if -16.0 <= gx <= 12.0 and 8.0 <= gz <= 17.0:
+        step_dist = gz - 8.0
+        step_f = smoothstep(1.5, 6.0, step_dist)
+        h = min(h, CENTRAL_BATTLEFIELD_H * (1.0 - step_f) + SOUTH_ROUTE_H * step_f)
 
     # --------------------------------------------------------------------------
     # 7. East Bastion (Bridgehead Defense Pad, 26, -8)
@@ -204,14 +242,14 @@ def get_terrain_elevation(gx, gz):
     # Rising approach from Bridge exit (26.0, 0.0) towards Fortress Gate (38.0, 20.0)
     d_gate_app, t_app = dist_point_to_segment(gx, gz, 26.0, 0.0, FORTRESS_GATE_POS[0], FORTRESS_GATE_POS[1])
     if d_gate_app < 18.0:
-        f_app = 1.0 - smoothstep(9.0, 17.0, d_gate_app)
+        f_app = 1.0 - smoothstep(9.0, 16.5, d_gate_app)
         ramp_h = 8.2 * (1.0 - t_app) + FORTRESS_GATE_H * t_app
         h = max(h, h * (1.0 - f_app) + ramp_h * f_app)
 
-    # Fortress Gate Plateau flattening (38, 20) - ample 36m wide flat pad for gate & walls
+    # Fortress Gate Plateau flattening (38, 20) - ample 40m wide flat pad for gate & walls
     dfg = math.hypot(gx - FORTRESS_GATE_POS[0], gz - FORTRESS_GATE_POS[1])
-    if dfg < 22.0:
-        factor_fg = 1.0 - smoothstep(14.0, 21.0, dfg)
+    if dfg < 23.0:
+        factor_fg = 1.0 - smoothstep(14.5, 21.5, dfg)
         h = max(h, h * (1.0 - factor_fg) + FORTRESS_GATE_H * factor_fg)
 
     # Ramp: Fortress Gate (38, 20) to Enemy HQ (34, 36)
@@ -225,8 +263,7 @@ def get_terrain_elevation(gx, gz):
     # 9. INDUSTRIAL RAVINE & HEAVY MILITARY BRIDGE SLOT
     # --------------------------------------------------------------------------
     # The Ravine runs roughly North-South along X ~ 18m
-    # Meandering gorge centerline
-    ravine_cx = 18.0 + 3.0 * math.sin(gz * 0.08)
+    ravine_cx = 18.0 + 2.5 * math.sin(gz * 0.09)
     d_ravine_x = abs(gx - ravine_cx)
 
     # Bridge Slot: centered at gx = 18.0, gz = 0.0
@@ -234,56 +271,58 @@ def get_terrain_elevation(gx, gz):
     is_in_bridge_corridor = abs(gz) <= 12.0
     bridge_blend = 1.0 - smoothstep(6.5, 12.0, abs(gz))
 
-    # Base gorge half width: 9.0m nominal (18m total width)
-    gorge_half_w = 9.0 + 2.0 * math.cos(gz * 0.1)
+    # Base gorge half width: 8.5m nominal (17m total width)
+    gorge_half_w = 8.5 + 2.0 * math.cos(gz * 0.11)
     if is_in_bridge_corridor:
-        # Near bridge, strictly 8.0m half width centered at X=18.0 -> Gap X is exactly 10.0 to 26.0 (16m clear gorge)
         gorge_half_w = gorge_half_w * (1.0 - bridge_blend) + 8.0 * bridge_blend
         ravine_cx = ravine_cx * (1.0 - bridge_blend) + 18.0 * bridge_blend
         d_ravine_x = abs(gx - ravine_cx)
 
-    # Ravine carving applies if north of South route (gz < 22.0)
-    if d_ravine_x < gorge_half_w + 4.0 and gz < 24.0:
-        # Sharp cliff profile
+    # Ravine carving applies if north of South route (gz < 24.0)
+    if d_ravine_x < gorge_half_w + 4.5 and gz < 24.0:
         cliff_t = smoothstep(gorge_half_w - 2.5, gorge_half_w + 1.2, d_ravine_x)
         floor_h = RAVINE_FLOOR_H
         if gz > 14.0:
-            # South end of ravine transitions smoothly into South Lowland route
             t_s = smoothstep(14.0, 24.0, gz)
             floor_h = floor_h * (1.0 - t_s) + SOUTH_ROUTE_H * t_s
         h = floor_h * (1.0 - cliff_t) + h * cliff_t
 
     # Bridge Abutment Landing Terraces (Ensures bridge sits on rock solid 8.0m deck ground)
-    # West abutment: X in [2.0, 10.0], Z in [-8.5, 8.5]
     if 1.0 <= gx <= 10.2 and abs(gz) <= 8.5:
         f_ab_w = 1.0 - smoothstep(6.0, 8.5, abs(gz))
         h = h * (1.0 - f_ab_w) + CENTRAL_BATTLEFIELD_H * f_ab_w
 
-    # East abutment: X in [25.8, 34.0], Z in [-8.5, 8.5]
     if 25.8 <= gx <= 35.0 and abs(gz) <= 8.5:
         f_ab_e = 1.0 - smoothstep(6.0, 8.5, abs(gz))
         h = h * (1.0 - f_ab_e) + CENTRAL_BATTLEFIELD_H * f_ab_e
 
     # --------------------------------------------------------------------------
-    # 10. Perimeter Mountains & Rim Cliffs (Out-of-bounds walls)
+    # 10. Perimeter Mountains & Rim Cliffs (Organic Basin Boundary)
     # --------------------------------------------------------------------------
-    edge_dist = max(abs(gx), abs(gz))
-    if edge_dist > 48.0:
-        f_edge = smoothstep(48.0, 68.0, edge_dist)
-        mountain_h = PERIMETER_CLIFF_H + 3.5 * math.sin(gx * 0.12 + gz * 0.10)
+    # Use box distance so corners (Player Base at -32,-32 and Enemy Base at 34,36)
+    # are completely preserved and never swallowed by circular radius!
+    box_dist = max(abs(gx), abs(gz))
+    angle = math.atan2(gz, gx)
+    # Fluctuate rim threshold organically between 51m and 60m
+    rim_threshold = 54.0 + 4.5 * math.sin(angle * 3.0 + 0.5) + 2.5 * math.cos(angle * 5.0 - 0.8)
+
+    if box_dist > rim_threshold - 5.0:
+        f_edge = smoothstep(rim_threshold - 5.0, rim_threshold + 9.0, box_dist)
+        crag_noise = 4.0 * math.sin(gx * 0.12 - gz * 0.10) + 2.5 * math.cos(gx * 0.20 + gz * 0.16)
+        mountain_h = PERIMETER_CLIFF_H + crag_noise
         h = h * (1.0 - f_edge) + mountain_h * f_edge
 
     # --------------------------------------------------------------------------
-    # 11. Organic Rock Micro-Noise
+    # 11. Organic Rock Micro-Noise & Subtle Geological Strata
     # --------------------------------------------------------------------------
-    # Keep combat pads and bridge approaches clean, apply rugged noise on cliffs and perimeter
-    noise_weight = 0.28
+    noise_weight = 0.24
     if dc < 18.0 or dp < 16.0 or de < 16.0 or dw < 12.0 or ds < 12.0 or deb < 12.0 or dfg < 14.0:
-        noise_weight = 0.06
+        noise_weight = 0.04
     if is_in_bridge_corridor and 2.0 <= gx <= 26.0:
         noise_weight = 0.02
 
-    h += noise_2d(gx, gz) * noise_weight
+    strata = 0.18 * math.sin(h * 1.57) if noise_weight > 0.15 else 0.0
+    h += (noise_2d(gx, gz) + strata) * noise_weight
     return max(0.0, h)
 
 
@@ -291,21 +330,21 @@ def get_terrain_elevation(gx, gz):
 # MESH & MATERIAL GENERATION
 # ==============================================================================
 def create_materials():
-    """Create the 6 stylized-realistic PBR materials for the terrain foundation."""
+    """Create the stylized-realistic PBR materials with polished Aether Crown palette."""
     mats = {}
-    # 1. Dark grass for general plateaus
-    mats["grass"] = make_pbr("terrain_grass_dark", (0.16, 0.22, 0.12), metallic=0.02, roughness=0.88)
-    # 2. Worn earth / packed dirt for major routes & ramps
-    mats["dirt"] = make_pbr("terrain_dirt_worn", (0.32, 0.26, 0.18), metallic=0.05, roughness=0.82)
-    # 3. Stone for steep cliffs, rock bluffs, and ravine walls
-    mats["stone"] = make_pbr("terrain_stone_cliff", (0.24, 0.23, 0.23), metallic=0.08, roughness=0.92)
-    # 4. Industrial ground for base staging areas, HQ pads, fortress grounds
-    mats["industrial"] = make_pbr("terrain_industrial_ground", (0.18, 0.18, 0.20), metallic=0.20, roughness=0.75)
-    # 5. Ravine water / industrial runoff
-    mats["water"] = make_pbr("terrain_water_ravine", (0.08, 0.14, 0.18), metallic=0.15, roughness=0.20)
-    # 6. Aether rock vein accent
-    mats["aether"] = make_pbr("terrain_aether_rock", (0.12, 0.25, 0.32), metallic=0.10, roughness=0.50,
-                              emission_color=(0.20, 0.65, 0.85), emission_strength=1.8)
+    # 1. Dark muted grass (industrial fantasy olive green)
+    mats["grass"] = make_pbr("terrain_grass_dark", (0.06, 0.08, 0.05), metallic=0.02, roughness=0.92)
+    # 2. Industrial brown earth (iron-rich worn path / packed dirt)
+    mats["dirt"] = make_pbr("terrain_dirt_worn", (0.22, 0.15, 0.08), metallic=0.05, roughness=0.82)
+    # 3. Charcoal rock (stark, dramatic basalt cliff & canyon walls)
+    mats["stone"] = make_pbr("terrain_stone_cliff", (0.08, 0.08, 0.09), metallic=0.10, roughness=0.92)
+    # 4. Dark gray constructed ground (compacted staging/foundry/fortress ground)
+    mats["industrial"] = make_pbr("terrain_industrial_ground", (0.11, 0.11, 0.12), metallic=0.28, roughness=0.70)
+    # 5. Ravine sludge / industrial runoff
+    mats["water"] = make_pbr("terrain_water_ravine", (0.02, 0.04, 0.05), metallic=0.22, roughness=0.16)
+    # 6. Restrained cyan Aether rock vein accent
+    mats["aether"] = make_pbr("terrain_aether_rock", (0.03, 0.12, 0.18), metallic=0.15, roughness=0.45,
+                              emission_color=(0.10, 0.35, 0.45), emission_strength=1.5)
     return mats
 
 
@@ -317,8 +356,6 @@ def build_terrain_mesh(materials):
     z_min = -MAP_DEPTH * 0.5
 
     verts = []
-    # Blender coordinates: X = gx, Y = -gz, Z = height
-    # Store height grid for normal calculation and heightmap
     height_grid = []
     for iz in range(nz):
         gz = z_min + iz * GRID_STEP
@@ -327,7 +364,6 @@ def build_terrain_mesh(materials):
             gx = x_min + ix * GRID_STEP
             elev = get_terrain_elevation(gx, gz)
             row.append(elev)
-            # Blender: X = gx, Y = -gz, Z = elev
             verts.append((gx, -gz, elev))
         height_grid.append(row)
 
@@ -338,7 +374,6 @@ def build_terrain_mesh(materials):
             i1 = iz * nx + (ix + 1)
             i2 = (iz + 1) * nx + (ix + 1)
             i3 = (iz + 1) * nx + ix
-            # Quad face with counter-clockwise winding (upward normal +Z)
             faces.append((i3, i2, i1, i0))
 
     mesh = bpy.data.meshes.new(name="AetherCrown_Terrain_Foundation_Mesh")
@@ -349,7 +384,6 @@ def build_terrain_mesh(materials):
     bpy.context.collection.objects.link(obj)
 
     # Assign material slots in exact order:
-    # 0: grass, 1: dirt, 2: stone, 3: industrial, 4: water, 5: aether
     mat_list = [
         materials["grass"],       # 0
         materials["dirt"],        # 1
@@ -364,30 +398,27 @@ def build_terrain_mesh(materials):
     # Classify each polygon face
     mesh.update()
     for poly in mesh.polygons:
-        # Calculate face center in Godot coordinates
-        # Blender center: (bx, by, bz) -> Godot (gx=bx, gz=-by, gy=bz)
         gx = poly.center.x
         gz = -poly.center.y
         elev = poly.center.z
-        norm_z = poly.normal.z  # In Blender, +Z is up (elevation normal)
+        norm_z = poly.normal.z  # In Blender, +Z is up
 
-        # 1. Very steep slope (Cliff / Stone Wall)
-        # Normal Z < 0.76 is approximately > 40 degrees incline
-        if norm_z < 0.76:
-            # Check if near an Aether rock feature (accent)
+        # 1. Very steep sheer cliffs (Canyon walls, vertical bluffs)
+        # Normal Z < 0.70 is > 45 degrees incline -> sheer charcoal cliff
+        if norm_z < 0.70:
             d_aether1 = math.hypot(gx - (-18.0), gz - (-12.0))
             d_aether2 = math.hypot(gx - (18.0), gz - (-14.0))
-            if (d_aether1 < 6.0 or d_aether2 < 6.0) and 3.0 < elev < 14.0:
+            if (d_aether1 < 6.0 or d_aether2 < 6.0) and 2.5 < elev < 14.0:
                 poly.material_index = 5  # aether rock
             else:
-                poly.material_index = 2  # stone cliff
+                poly.material_index = 2  # charcoal stone cliff
             continue
 
         # 2. Canyon / Ravine Floor Water / Sludge
-        if elev < 1.2:
-            poly.material_index = 4  # water
+        if elev < 1.3:
+            poly.material_index = 4  # sludge water
             continue
-        elif elev < 2.8 and abs(gx - 14.0) < 12.0:
+        elif elev < 2.8 and abs(gx - 16.0) < 11.0:
             poly.material_index = 2  # wet stone at canyon floor
             continue
 
@@ -398,42 +429,54 @@ def build_terrain_mesh(materials):
         dw = math.hypot(gx - WEST_FOUNDRY_POS[0], gz - WEST_FOUNDRY_POS[1])
         deb = math.hypot(gx - EAST_BASTION_POS[0], gz - EAST_BASTION_POS[1])
 
-        if dp < 15.0 or de < 16.0 or dfg < 14.0 or dw < 10.0 or deb < 11.0:
-            poly.material_index = 3  # industrial ground
+        if dp < 15.0 or de < 16.0 or dfg < 14.5 or dw < 10.0 or deb < 10.0:
+            poly.material_index = 3  # dark gray industrial ground
             continue
 
-        # 4. Roads / Worn Dirt Routes
-        # Check proximity to strategic route axes
-        is_route = False
-        # North route: (-32,-32)->(2,-18)->(28,-10)
-        d_nr1, _ = dist_point_to_segment(gx, gz, -32.0, -32.0, 2.0, -18.0)
-        d_nr2, _ = dist_point_to_segment(gx, gz, 2.0, -18.0, 26.0, -10.0)
-        # Central main highway: (-22,4)->(0,0)->(14,0)->(25,14)
-        d_cr1, _ = dist_point_to_segment(gx, gz, -22.0, 4.0, 0.0, 0.0)
-        d_cr2, _ = dist_point_to_segment(gx, gz, 0.0, 0.0, 14.0, 0.0)
-        d_cr3, _ = dist_point_to_segment(gx, gz, 22.0, 0.0, 25.0, 14.0)
-        # South route: (-22,4)->(-2,18)->(26,28)
-        d_sr1, _ = dist_point_to_segment(gx, gz, -22.0, 4.0, -2.0, 18.0)
-        d_sr2, _ = dist_point_to_segment(gx, gz, -2.0, 18.0, 26.0, 28.0)
+        # 4. Strategic Three Routes (Continuous brown earth corridors)
+        # Prioritize path classification before moderate slope check so ramps stay continuous!
+        # North route: (-32,-32) -> (-18,-26) -> (0,-18) -> (16,-16) -> (28,-8) -> (34,6) -> (34,24) -> (34,36)
+        d_nr1, _ = dist_point_to_segment(gx, gz, -32.0, -32.0, -18.0, -26.0)
+        d_nr2, _ = dist_point_to_segment(gx, gz, -18.0, -26.0, 0.0, -18.0)
+        d_nr3, _ = dist_point_to_segment(gx, gz, 0.0, -18.0, 16.0, -16.0)
+        d_nr4, _ = dist_point_to_segment(gx, gz, 16.0, -16.0, 28.0, -8.0)
+        d_nr5, _ = dist_point_to_segment(gx, gz, 28.0, -8.0, 34.0, 6.0)
+        d_nr6, _ = dist_point_to_segment(gx, gz, 34.0, 6.0, 34.0, 36.0)
+        min_north_dist = min(d_nr1, d_nr2, d_nr3, d_nr4, d_nr5, d_nr6)
 
-        min_route_dist = min(d_nr1, d_nr2, d_cr1, d_cr2, d_cr3, d_sr1, d_sr2)
-        if min_route_dist < 4.5:
-            poly.material_index = 1  # dirt route
+        # Central route: (-32,-32) -> (-22,4) -> (-8,0) -> (10,0) and (26,0) -> (38,20) -> (34,36)
+        d_cr0, _ = dist_point_to_segment(gx, gz, -32.0, -32.0, -22.0, 4.0)
+        d_cr1, _ = dist_point_to_segment(gx, gz, -22.0, 4.0, -8.0, 0.0)
+        d_cr2, _ = dist_point_to_segment(gx, gz, -8.0, 0.0, 10.0, 0.0)
+        d_cr3, _ = dist_point_to_segment(gx, gz, 26.0, 0.0, 38.0, 20.0)
+        d_cr4, _ = dist_point_to_segment(gx, gz, 38.0, 20.0, 34.0, 36.0)
+        min_central_dist = min(d_cr0, d_cr1, d_cr2, d_cr3, d_cr4)
+
+        # South route: (-22,4) -> (-16,14) -> (-2,20) -> (14,26) -> (26,28) -> (34,36)
+        d_sr1, _ = dist_point_to_segment(gx, gz, -22.0, 4.0, -16.0, 14.0)
+        d_sr2, _ = dist_point_to_segment(gx, gz, -16.0, 14.0, -2.0, 20.0)
+        d_sr3, _ = dist_point_to_segment(gx, gz, -2.0, 20.0, 14.0, 26.0)
+        d_sr4, _ = dist_point_to_segment(gx, gz, 14.0, 26.0, 26.0, 28.0)
+        d_sr5, _ = dist_point_to_segment(gx, gz, 26.0, 28.0, 34.0, 36.0)
+        min_south_dist = min(d_sr1, d_sr2, d_sr3, d_sr4, d_sr5)
+
+        min_route_dist = min(min_north_dist, min_central_dist, min_south_dist)
+        if min_route_dist < 6.8:
+            poly.material_index = 1  # industrial brown earth path
             continue
 
-        # 5. Central Battlefield Area (Mix of worn dirt and tough grass)
+        # 5. Central Battlefield Arena (Broad clash floor: organic mix of dirt and industrial slag)
         dc = math.hypot(gx - CENTRAL_NEXUS_POS[0], gz - CENTRAL_NEXUS_POS[1])
-        if dc < 14.0:
-            # Central clash arena: mostly worn dirt with industrial fringes
-            poly.material_index = 1 if (gx + gz) % 2.5 > 0.8 else 3
+        if dc < 18.0:
+            arena_noise = noise_2d(gx * 0.35, gz * 0.35)
+            poly.material_index = 1 if arena_noise > -0.15 else 3
             continue
 
-        # 6. Default Plateau Ground: Dark Grass
-        # If moderate slope (norm_z < 0.88), use rock/stone edge
-        if norm_z < 0.86:
-            poly.material_index = 2  # stone edge
+        # 6. Default Ground: Dark Muted Grass / Stone Edges
+        if norm_z < 0.84:
+            poly.material_index = 2  # charcoal stone edge
         else:
-            poly.material_index = 0  # dark grass
+            poly.material_index = 0  # dark muted grass
 
     # Smooth shading for organic terrain look
     mesh.polygons.foreach_set("use_smooth", [True] * len(mesh.polygons))
@@ -451,95 +494,83 @@ def build_terrain_mesh(materials):
 
 
 def export_heightmap(height_grid, nx, nz, filepath):
-    """Exports a 16-bit grayscale PNG heightmap normalized to 0..65535."""
+    """Exports a 16-bit grayscale PNG heightmap for Godot Navigation / Physics / Minimap."""
     if not HAS_PIL:
-        print("PIL not available, skipping heightmap generation.")
-        return False
+        print("PIL not available in Blender Python environment, skipping PNG heightmap generation.")
+        return
 
     min_h = 0.0
-    max_h = PERIMETER_CLIFF_H + 4.0
+    max_h = 26.0  # Normalized to 0..26m range
 
-    raw_data = bytearray()
-    # Image rows from top (Z min in Blender Y) to bottom (Z max in Blender Y)
-    # To match standard heightmap orientation (Top = -Z / North, Bottom = +Z / South)
+    img = Image.new("I;16", (nx, nz))
+    pixels = []
     for iz in range(nz):
         for ix in range(nx):
             h = height_grid[iz][ix]
-            val = int(clamp((h - min_h) / (max_h - min_h), 0.0, 1.0) * 65535)
-            # 16-bit little-endian
-            raw_data.append(val & 0xFF)
-            raw_data.append((val >> 8) & 0xFF)
-
-    img = Image.frombytes("I;16", (nx, nz), bytes(raw_data))
+            norm = max(0.0, min(1.0, (h - min_h) / (max_h - min_h)))
+            val16 = int(norm * 65535.0)
+            pixels.append(val16)
+    img.putdata(pixels)
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     img.save(filepath)
-    print(f"Exported 16-bit heightmap to {filepath} ({nx}x{nz})")
-    return True
-
-
-def clamp(val, min_val, max_val):
-    return max(min_val, min(max_val, val))
+    print(f"Heightmap exported: {filepath} ({nx}x{nz}, 16-bit)")
 
 
 # ==============================================================================
-# MAIN GENERATION PIPELINE
+# MAIN WORKFLOW
 # ==============================================================================
 def main():
-    print("=== AETHER CROWN TERRAIN FOUNDATION GENERATOR ===")
-    # 1. Clear existing scene
-    bpy.ops.object.select_all(action="SELECT")
-    bpy.ops.object.delete(use_global=False)
-    for col in (bpy.data.meshes, bpy.data.materials, bpy.data.textures, bpy.data.images):
-        for item in list(col):
-            try:
-                col.remove(item)
-            except Exception:
-                pass
+    print("=== Aether Crown RTS Production Terrain Foundation 01 Generator (Final Polish) ===")
 
-    # 2. Create materials
-    mats = create_materials()
+    # Reset scene
+    bpy.ops.wm.read_factory_settings(use_empty=True)
 
-    # 3. Build terrain mesh
-    obj, height_grid, nx, nz = build_terrain_mesh(mats)
+    # 1. Materials
+    print("Creating stylized-realistic PBR materials...")
+    materials = create_materials()
 
-    # Stats
-    poly_count = len(obj.data.polygons)
-    vert_count = len(obj.data.vertices)
-    tri_count = sum(len(p.vertices) - 2 for p in obj.data.polygons)
-    print(f"Terrain Mesh Generated:")
-    print(f"  Dimensions: {MAP_WIDTH}m x {MAP_DEPTH}m (Step: {GRID_STEP}m)")
-    print(f"  Vertices: {vert_count}")
-    print(f"  Faces: {poly_count}")
-    print(f"  Triangles: {tri_count}")
+    # 2. Build Terrain Mesh
+    print("Generating parametric terrain mesh (140m x 140m, 1m grid)...")
+    terrain_obj, height_grid, nx, nz = build_terrain_mesh(materials)
 
-    # 4. Save .blend source
+    poly_count = len(terrain_obj.data.polygons)
+    vert_count = len(terrain_obj.data.vertices)
+    tri_count = poly_count * 2
+    print(f"Terrain Mesh Stats: {vert_count} verts, {poly_count} quads, {tri_count} tris")
+
+    # 3. Save .blend source
     os.makedirs(os.path.dirname(SOURCE_BLEND), exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=SOURCE_BLEND)
-    print(f"Saved .blend source: {SOURCE_BLEND}")
+    print(f"Saved Blender source: {SOURCE_BLEND}")
 
-    # 5. Export GLB
-    # Make sure terrain object is selected and active
-    bpy.ops.object.select_all(action="DESELECT")
-    obj.select_set(True)
-    bpy.context.view_layer.objects.active = obj
+    # 4. Export GLB
+    os.makedirs(os.path.dirname(EXPORT_GLB_INTERMEDIATE), exist_ok=True)
+    os.makedirs(os.path.dirname(EXPORT_GLB_GAME), exist_ok=True)
 
-    for glb_path in [EXPORT_GLB_INTERMEDIATE, EXPORT_GLB_GAME]:
-        os.makedirs(os.path.dirname(glb_path), exist_ok=True)
-        bpy.ops.export_scene.gltf(
-            filepath=glb_path,
-            export_format="GLB",
-            use_selection=True,
-            export_apply=True,
-            export_yup=True,
-            export_normals=True,
-            export_materials="EXPORT",
-            export_animations=False,
-        )
-        print(f"Exported GLB: {glb_path} ({os.path.getsize(glb_path)} bytes)")
+    # Export to intermediate
+    bpy.ops.export_scene.gltf(
+        filepath=EXPORT_GLB_INTERMEDIATE,
+        export_format="GLB",
+        use_selection=False,
+        export_apply=True,
+        export_yup=True,
+    )
+    print(f"Exported intermediate GLB: {EXPORT_GLB_INTERMEDIATE}")
 
-    # 6. Export Heightmap
+    # Export directly to Godot assets
+    bpy.ops.export_scene.gltf(
+        filepath=EXPORT_GLB_GAME,
+        export_format="GLB",
+        use_selection=False,
+        export_apply=True,
+        export_yup=True,
+    )
+    print(f"Exported Godot game GLB: {EXPORT_GLB_GAME}")
+
+    # 5. Export 16-bit Heightmap
     export_heightmap(height_grid, nx, nz, HEIGHTMAP_PNG)
-    print("=== TERRAIN GENERATION COMPLETE ===")
+
+    print("=== Terrain Foundation Generation Complete ===")
 
 
 if __name__ == "__main__":

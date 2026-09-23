@@ -10,10 +10,10 @@ extends Node3D
 ## - Player & Enemy Industrial High Grounds (Spacious staging pads)
 ##
 ## Controls:
-## - 1..9, 0, J, K: Switch Camera Presets (1-12)
+## - 1..9, 0, J, K, L, M: Switch Camera Presets (1-14)
 ## - WASD / Arrows: Pan camera
 ## - Q / E or Mouse Wheel: Zoom
-## - C: Capture full screenshot set (12 images)
+## - C: Capture full screenshot set (14 images)
 ## - H: Toggle HUD overlay
 
 const TerrainGLB: PackedScene = preload("res://assets/models/map/aether_crown_terrain_foundation.glb")
@@ -35,7 +35,7 @@ const ASSETS: Dictionary = {
 
 const PRESETS: Array = [
 	{"name": "01_full_isometric_overview", "target": Vector3(0, 8, 0), "dist": 135.0, "pitch": 48.0, "yaw": -40.0},
-	{"name": "02_top_view", "target": Vector3(0, 8, 0), "dist": 145.0, "pitch": 86.0, "yaw": 0.0},
+	{"name": "02_top_view", "target": Vector3(0, 8, 0), "dist": 185.0, "pitch": 88.0, "yaw": -45.0},
 	{"name": "03_player_plateau", "target": Vector3(-32, 12, -32), "dist": 55.0, "pitch": 38.0, "yaw": -35.0},
 	{"name": "04_three_routes", "target": Vector3(-12, 8, 0), "dist": 90.0, "pitch": 50.0, "yaw": -45.0},
 	{"name": "05_central_battlefield", "target": Vector3(-10, 8, 0), "dist": 55.0, "pitch": 36.0, "yaw": -35.0},
@@ -46,6 +46,8 @@ const PRESETS: Array = [
 	{"name": "10_enemy_plateau", "target": Vector3(34, 15, 36), "dist": 55.0, "pitch": 38.0, "yaw": -35.0},
 	{"name": "11_low_angle_elevation", "target": Vector3(10, 8, 0), "dist": 50.0, "pitch": 18.0, "yaw": -48.0},
 	{"name": "12_walker_traversal_scale", "target": Vector3(18, 8, 0), "dist": 28.0, "pitch": 25.0, "yaw": -45.0},
+	{"name": "13_terrain_only_isometric", "target": Vector3(0, 8, 0), "dist": 135.0, "pitch": 48.0, "yaw": -40.0},
+	{"name": "14_three_routes_top_debug", "target": Vector3(0, 8, 0), "dist": 185.0, "pitch": 88.0, "yaw": -45.0},
 ]
 
 @onready var rig: Node3D = $CameraRig
@@ -53,6 +55,7 @@ const PRESETS: Array = [
 @onready var hud: CanvasLayer = $HUD
 @onready var label_preset: Label = $HUD/Panel/VBox/PresetLabel
 @onready var label_stats: Label = $HUD/Panel/VBox/StatsLabel
+@onready var ref_assets_root: Node3D = $ReferenceAssetsRoot
 
 var _current_preset_idx: int = 0
 var _is_capturing: bool = false
@@ -108,6 +111,8 @@ func _input(event: InputEvent) -> void:
 			KEY_0: apply_preset(9)
 			KEY_J: apply_preset(10)
 			KEY_K: apply_preset(11)
+			KEY_L: apply_preset(12)
+			KEY_M: apply_preset(13)
 			KEY_C: capture_all_screenshots()
 			KEY_H: hud.visible = not hud.visible
 
@@ -126,7 +131,9 @@ func _place_reference_diorama() -> void:
 
 	# 1. Heavy Military Bridge in dedicated slot (X=18, Y=0, Z=0)
 	# Rotated 90 deg so the 32m span connects West bank (X=2..10) to East bank (X=26..34) at Deck Z = 8.0m
-	_spawn_asset("bridge_heavy", Vector3(18.0, 0.0, 0.0), 90.0, root)
+	var bridge := _spawn_asset("bridge_heavy", Vector3(18.0, 0.0, 0.0), 90.0, root)
+	if bridge != null:
+		bridge.name = "BridgeReference"
 
 	# 2. Fortress Complex on Gate Plateau (38, 11.8, 20)
 	_spawn_asset("fortress_gate", Vector3(38.0, 11.8, 20.0), -55.0, root)
@@ -147,7 +154,7 @@ func _place_reference_diorama() -> void:
 	_spawn_asset("factory", Vector3(-22.0, 9.8, 4.0), 15.0, root)         # West Foundry
 	_spawn_asset("aether_well", Vector3(2.0, 13.5, -18.0), 0.0, root)      # North Relay
 	_spawn_asset("hq_command", Vector3(-12.0, 8.0, 0.0), 0.0, root, 0.72)  # Central Nexus
-	_spawn_asset("boiler_works", Vector3(-2.0, 4.5, 18.0), -20.0, root)    # South Works
+	_spawn_asset("boiler_works", Vector3(-2.0, 4.5, 20.0), -20.0, root)    # South Works
 
 	# 6. Walkers for scale reference
 	# Bridge crossing walker
@@ -177,6 +184,21 @@ func _spawn_asset(key: String, pos: Vector3, rot_y_deg: float, parent: Node, sca
 	return inst
 
 
+func _set_reference_assets_mode(mode: String) -> void:
+	if ref_assets_root == null:
+		return
+	for child in ref_assets_root.get_children():
+		if mode == "terrain_only":
+			# Only keep bridge to show slot fit, hide buildings & walkers
+			child.visible = (child.name == "BridgeReference")
+		elif mode == "minimal":
+			# Bridge and city markers only
+			child.visible = (child.name == "BridgeReference" or "hq" in child.name.to_lower() or "factory" in child.name.to_lower())
+		else:
+			# "full": show all
+			child.visible = true
+
+
 func apply_preset(idx: int) -> void:
 	if idx < 0 or idx >= PRESETS.size():
 		return
@@ -187,12 +209,18 @@ func apply_preset(idx: int) -> void:
 	_cam_pitch = float(p["pitch"])
 	_cam_yaw = float(p["yaw"])
 
+	# Handle asset density per preset
+	if p["name"] == "13_terrain_only_isometric" or p["name"] == "14_three_routes_top_debug":
+		_set_reference_assets_mode("terrain_only")
+	else:
+		_set_reference_assets_mode("full")
+
 	_update_camera()
 
 	if label_preset != null:
-		label_preset.text = "Preset [%d/12]: %s" % [idx + 1, p["name"]]
+		label_preset.text = "Preset [%d/14]: %s" % [idx + 1, p["name"]]
 	if label_stats != null:
-		label_stats.text = "Terrain: 140x140m | 19,881 verts | 39,200 tris | Iris Xe Optimized\nKeys: 1-9, 0, J, K (Presets) | C (Capture All) | H (HUD)"
+		label_stats.text = "Terrain: 140x140m | 19,881 verts | 39,200 tris | Iris Xe Optimized\nKeys: 1-9, 0, J, K, L, M (Presets) | C (Capture All) | H (HUD)"
 
 
 func _update_camera() -> void:
@@ -228,4 +256,4 @@ func capture_all_screenshots() -> void:
 
 	hud.visible = was_hud_visible
 	_is_capturing = false
-	print("CAPTURE_ALL_COMPLETE: 12 screenshots saved to docs/screenshots/gemini_terrain_foundation/")
+	print("CAPTURE_ALL_COMPLETE: 14 screenshots saved to docs/screenshots/gemini_terrain_foundation/")
