@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3]
+[gd_scene load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://scenes/maps/phase2d_strategic_match.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/camera/camera_controller.gd" id="2"]
@@ -13,6 +13,7 @@
 [ext_resource type="Script" path="res://scripts/city/rts_city.gd" id="11"]
 [ext_resource type="Script" path="res://scripts/territory/territory_controller.gd" id="12"]
 [ext_resource type="Script" path="res://scripts/district/district_controller.gd" id="13"]
+[ext_resource type="Script" path="res://scripts/terrain/production_terrain.gd" id="17"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 1
@@ -35,7 +36,7 @@ shadow_enabled = true
 [node name="CameraRig" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.642788, 0.766044, 0, -0.766044, 0.642788, 0, 0, 0)
 script = ExtResource("2")
-map_limit = 52.0
+map_limit = 64.0
 
 [node name="Camera3D" type="Camera3D" parent="CameraRig"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 21.4, 18)
@@ -45,6 +46,11 @@ far = 500.0
 
 [node name="MapNav" type="NavigationRegion3D" parent="."]
 script = ExtResource("3")
+
+[node name="ProductionTerrain" type="Node3D" parent="."]
+script = ExtResource("17")
+
+[node name="TerrainRoot" type="Node3D" parent="."]
 
 [node name="GroundRoot" type="Node3D" parent="."]
 

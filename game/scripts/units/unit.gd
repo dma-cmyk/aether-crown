@@ -59,7 +59,10 @@ var _soft_target: Node3D = null
 var _soft_left: float = 0.0
 var _sep: Vector3 = Vector3.ZERO
 var _sep_tick: int = 0
+var _slide_dir: Vector3 = Vector3.ZERO
+var _slide_left: float = 0.0
 var _map_nav: Node = null
+var _terrain: Node = null
 
 static var _mats: Dictionary = {}
 
@@ -126,6 +129,7 @@ func _ready() -> void:
 	_scan_left = randf() * SCAN_INTERVAL
 	_sep_tick = int(randf() * 3.0)
 	_map_nav = get_tree().get_first_node_in_group("map_nav")
+	_terrain = get_tree().get_first_node_in_group("production_terrain")
 	var m := team_materials()
 	if is_player:
 		body_mesh.material_override = m["body_p"]
@@ -300,9 +304,24 @@ func _physics_process(delta: float) -> void:
 	else:
 		state = State.IDLE
 		velocity = Vector3(0, STICK_GRAVITY, 0)
-		move_and_slide()
+		_guarded_slide(delta)
 		_snap_ground()
 
+
+
+## Defensive physics guard (Phase 2.10): a body teleported by tests/spawn
+## can briefly overlap another body's ghost; deep-penetration recovery may
+## then eject it arbitrarily far in one move_and_slide. Normal commanded
+## displacement is <= move_speed*delta + separation, so any larger jump is
+## anomalous: revert the horizontal component.
+func _guarded_slide(delta: float) -> void:
+	var pre := global_position
+	move_and_slide()
+	var post := global_position
+	var max_d: float = move_speed * delta * 4.0 + 0.3
+	var dh := Vector2(post.x - pre.x, post.z - pre.z).length()
+	if dh > max_d:
+		global_position = Vector3(pre.x, post.y, pre.z)
 
 func _engage(enemy: Node3D, delta: float, aggressive: bool) -> void:
 	var to: Vector3 = enemy.global_position - global_position
@@ -316,7 +335,7 @@ func _engage(enemy: Node3D, delta: float, aggressive: bool) -> void:
 	if dist <= attack_range:
 		state = State.ATTACKING
 		velocity = Vector3(0, STICK_GRAVITY, 0)
-		move_and_slide()
+		_guarded_slide(delta)
 		_face(to, delta)
 		if _cooldown <= 0.0:
 			_cooldown = attack_interval
@@ -335,7 +354,7 @@ func _move_along_path(_dest: Vector3, delta: float) -> void:
 	_ensure_path(_dest, delta)
 	if nav.is_navigation_finished():
 		velocity = Vector3(0, STICK_GRAVITY, 0)
-		move_and_slide()
+		_guarded_slide(delta)
 		_snap_ground()
 		return
 	var next: Vector3 = nav.get_next_path_position()
@@ -348,11 +367,33 @@ func _move_along_path(_dest: Vector3, delta: float) -> void:
 		dir = Vector3.ZERO
 	else:
 		dir = dir.normalized()
+	# Obstacle slide (walker parity): when pressed against a wall (city /
+	# building / another unit), blend a tangent along the contact normal
+	# so the unit slips around instead of pinning itself. A slide that
+	# would walk AWAY from the path is dropped.
+	if _slide_left > 0.0:
+		_slide_left -= delta
+		if _slide_dir.dot(dir) > 0.05:
+			dir = (dir + _slide_dir * 0.9).normalized()
+		else:
+			_slide_left = 0.0
+			_slide_dir = Vector3.ZERO
+	elif is_on_wall() and dir.length() > 0.01:
+		var n := get_wall_normal()
+		n.y = 0.0
+		if n.length() > 0.1:
+			var tangent := Vector3(-n.z, 0.0, n.x).normalized()
+			if tangent.dot(dir) < 0.0:
+				tangent = -tangent
+			if tangent.dot(dir) > 0.05:
+				_slide_dir = tangent
+				_slide_left = 0.4
+				dir = (dir + tangent * 0.9).normalized()
 	var vel: Vector3 = (dir * move_speed) + _sep
 	if vel.length() > move_speed:
 		vel = vel.normalized() * move_speed
 	velocity = Vector3(vel.x, STICK_GRAVITY, vel.z)
-	move_and_slide()
+	_guarded_slide(delta)
 	_snap_ground()
 	if dir.length() > 0.01:
 		_face(dir, delta)
@@ -453,6 +494,13 @@ func _snap_ground() -> void:
 	if _map_nav != null and _map_nav.has_method("get_ground_height"):
 		var p := global_position
 		p.y = float(_map_nav.call("get_ground_height", p.x, p.z))
+		global_position = p
+	elif _terrain != null and _terrain.has_method("get_height"):
+		# Phase 2.10 fallback: match maps ground units on the production
+		# heightfield via MapNav; scenes without MapNav use the terrain
+		# group directly (same single-source rule).
+		var p := global_position
+		p.y = float(_terrain.call("get_height", p.x, p.z))
 		global_position = p
 
 

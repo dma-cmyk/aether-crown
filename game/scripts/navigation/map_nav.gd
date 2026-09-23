@@ -12,6 +12,12 @@ const NAV_MARGIN: float = 0.6
 
 var player_base: Vector3 = Vector3(-38, 0, -38)
 var enemy_base: Vector3 = Vector3(38, 0, 38)
+## Phase 2.10: when set (ProductionTerrain), ground height comes from the
+## production heightfield instead of the analytic fallback. Bridge decks
+## register as overrides so units walking over a ravine stay at deck level.
+var height_source: Object = null
+var _height_overrides: Array = [] # each: [Vector2 center, Vector2 half, float y]
+var _height_ramps: Array = [] # each: [Vector2 origin, float y0, Vector2 dir, float grade, float run, float half_width]
 
 var _circles: Array = [] # each: [Vector2(x,z), radius]
 var _rects: Array = [] # each: [Vector2 center, Vector2 size]
@@ -29,7 +35,107 @@ func register_obstacle_rect(center: Vector3, size: Vector2) -> void:
 	_rects.append([Vector2(center.x, center.z), size])
 
 
+## A walkable deck above the terrain (bridge). Height queries inside the
+## rect return the deck level; nav/nav-slope and unit ground-snap follow.
+## The 3m nav grid (half 7.5..10.5) must fully cover the corridor, so
+## narrow strips below NAV_STEP are inflated in the XZ axes only.
+## `feather` widens the COLLISION edge (0 = sharp walls, e.g. the bridge
+## deck whose sides must block; >0 = soft slope, e.g. terrace pads).
+func register_height_override(center: Vector3, size: Vector2, y: float, feather: float = 0.0) -> void:
+	var half := size * 0.5
+	if half.x < NAV_STEP:
+		half.x = NAV_STEP
+	if half.y < NAV_STEP:
+		half.y = NAV_STEP
+	_height_overrides.append([Vector2(center.x, center.z), half, y, feather])
+
+
+## A graded ramp cut through a cliff band: height rises `grade` per meter
+## along `dir` from `origin` (world y0 at origin) for `run` meters. The
+## corridor spans `width_neg` meters on the negative-perp side and
+## `width_pos` on the positive side (asymmetric: the fortress ramp hugs
+## the ravine rim on the west and the open shelf on the east).
+## The ramp REPLACES the terrain height inside its corridor (abs), so
+## collision, navmesh and ground-snap all ride the same smooth plane.
+func register_height_ramp(origin: Vector3, dir: Vector2, grade: float, run: float, width_neg: float, width_pos: float, feather: float = COLLISION_FEATHER) -> void:
+	_height_ramps.append([Vector2(origin.x, origin.z), origin.y, dir.normalized(), grade, run, width_neg, width_pos, feather])
+
+
+func _override_height(x: float, z: float) -> float:
+	var best := -1.0
+	for o in _height_overrides:
+		var d: Vector2 = (Vector2(x, z) - o[0]).abs()
+		if d.x < (o[1] as Vector2).x and d.y < (o[1] as Vector2).y:
+			best = maxf(best, float(o[2]))
+	for r in _height_ramps:
+		var rel := Vector2(x, z) - (r[0] as Vector2)
+		var dir: Vector2 = r[2]
+		var t: float = rel.dot(dir)
+		if t < 0.0 or t > float(r[4]):
+			continue
+		var perp: float = rel.x * dir.y - rel.y * dir.x
+		if perp < -float(r[5]) or perp > float(r[6]):
+			continue
+		best = maxf(best, float(r[1]) + t * float(r[3]))
+	return best
+
+
 func get_ground_height(x: float, z: float) -> float:
+	var o := _override_height(x, z)
+	if o >= 0.0:
+		return o
+	if height_source != null and height_source.has_method("get_height"):
+		return float(height_source.call("get_height", x, z))
+	var h := 0.8 * sin(x * 0.08) * cos(z * 0.07) + 0.4 * sin(x * 0.21 + z * 0.13)
+	var dp := Vector2(x - player_base.x, z - player_base.z).length()
+	var de := Vector2(x - enemy_base.x, z - enemy_base.z).length()
+	var d := minf(dp, de)
+	var f := clampf((d - 6.0) / (BASE_FLATTEN_RADIUS - 6.0), 0.0, 1.0)
+	return h * f
+
+
+## Collision height: like get_ground_height, but override boundaries are
+## feathered so the concave collision mesh has no vertical curtains.
+## Semantics match get_ground_height exactly inside every override
+## (max-of-overrides), so ground-snap and collision never disagree;
+## feathering only softens the outer edges.
+const COLLISION_FEATHER: float = 3.0
+
+func get_collision_height(x: float, z: float) -> float:
+	var best := get_ground_height_terrain(x, z)
+	for o in _height_overrides:
+		var rel: Vector2 = Vector2(x, z) - (o[0] as Vector2)
+		var half: Vector2 = o[1]
+		var inside: float = minf(half.x - absf(rel.x), half.y - absf(rel.y))
+		var w := 1.0 if inside >= 0.0 else 0.0
+		var feather: float = o[3]
+		if feather > 0.0:
+			w = clampf(inside / feather, 0.0, 1.0)
+			w = w * w * (3.0 - 2.0 * w)
+		if w > 0.0:
+			best = maxf(best, lerpf(best, float(o[2]), w))
+	for r in _height_ramps:
+		var rel2 := Vector2(x, z) - (r[0] as Vector2)
+		var dir: Vector2 = r[2]
+		var t: float = rel2.dot(dir)
+		var perp: float = rel2.x * dir.y - rel2.y * dir.x
+		var inside2: float = minf(minf(t, float(r[4]) - t), minf(perp + float(r[5]), float(r[6]) - perp))
+		var w2 := 1.0 if inside2 >= 0.0 else 0.0
+		var feather2: float = r[7]
+		if feather2 > 0.0:
+			w2 = clampf(inside2 / feather2, 0.0, 1.0)
+			w2 = w2 * w2 * (3.0 - 2.0 * w2)
+		if w2 > 0.0:
+			# Ramps REPLACE the terrain (they cut through cliffs), so
+			# blend down into the band instead of taking the max.
+			var ramp_h: float = lerpf(best, float(r[1]) + t * float(r[3]), w2)
+			best = ramp_h if w2 > 0.5 else maxf(best, ramp_h)
+	return best
+
+
+func get_ground_height_terrain(x: float, z: float) -> float:
+	if height_source != null and height_source.has_method("get_height"):
+		return float(height_source.call("get_height", x, z))
 	var h := 0.8 * sin(x * 0.08) * cos(z * 0.07) + 0.4 * sin(x * 0.21 + z * 0.13)
 	var dp := Vector2(x - player_base.x, z - player_base.z).length()
 	var de := Vector2(x - enemy_base.x, z - enemy_base.z).length()

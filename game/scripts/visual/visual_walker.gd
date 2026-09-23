@@ -76,6 +76,8 @@ var _slide_dir := Vector3.ZERO
 var _slide_left: float = 0.0
 var _muzzle: Node3D = null
 var _fx_root: Node3D = null
+var _map_nav: Node = null
+var _terrain: Node = null
 
 
 func setup(player_flag: bool, def: UnitDefinition = null) -> void:
@@ -111,6 +113,8 @@ func _ready() -> void:
 	_build_markers()
 	_resolve_muzzle()
 	_fx_root = get_parent() as Node3D
+	_map_nav = get_tree().get_first_node_in_group("map_nav")
+	_terrain = get_tree().get_first_node_in_group("production_terrain")
 	guard_pos = global_position
 	_scan_left = randf() * SCAN_INTERVAL
 	_refresh_visuals()
@@ -216,9 +220,12 @@ func _is_foe_target(n: Node) -> bool:
 ## Two boxes cover torso and legs; the thin cannon barrel and foot tips
 ## are excluded on purpose so the hitbox never overshoots the visual.
 ## Positions/sizes are Godot space (x right, y up, z = former Blender -Y).
+## Phase 2.10: the legs box bottom sits 0.15m above the origin so the
+## walker steps over the small lips between heightfield ramps / bridge
+## decks and raw terrain (its y is ground-snapped anyway).
 func _build_collision() -> void:
 	_add_box_shape(Vector3(2.2, 1.2, 2.0), Vector3(0, 3.0, 0.0), "torso")
-	_add_box_shape(Vector3(3.5, 2.4, 2.3), Vector3(0, 1.2, 0.15), "legs")
+	_add_box_shape(Vector3(3.5, 2.4, 2.3), Vector3(0, 1.35, 0.15), "legs")
 
 
 func _add_box_shape(size: Vector3, pos: Vector3, shape_name: String) -> void:
@@ -418,19 +425,31 @@ func _physics_process(delta: float) -> void:
 		if enemy != null:
 			_engage(enemy, delta)
 		else:
-			_steer_toward(attack_move_dest, delta)
+			_steer_toward(_route_target(attack_move_dest), delta)
 			if _order_arrived(attack_move_dest, delta):
 				attack_moving = false
 	elif has_move_order:
-		_steer_toward(move_dest, delta)
+		_steer_toward(_route_target(move_dest), delta)
 		if _order_arrived(move_dest, delta):
 			has_move_order = false
 	elif enemy != null:
 		_engage(enemy, delta)
 	else:
 		velocity = Vector3.ZERO
-		move_and_slide()
+		_guarded_slide(delta)
 
+
+
+## Same defensive guard as RTSUnit (Phase 2.10): teleport/spawn ghosts can
+## eject a body arbitrarily far in one move_and_slide.
+func _guarded_slide(delta: float) -> void:
+	var pre := global_position
+	move_and_slide()
+	var post := global_position
+	var max_d: float = move_speed * delta * 4.0 + 0.5
+	var dh := Vector2(post.x - pre.x, post.z - pre.z).length()
+	if dh > max_d:
+		global_position = Vector3(pre.x, post.y, pre.z)
 
 func _engage(enemy: Node3D, delta: float) -> void:
 	var to: Vector3 = enemy.global_position - global_position
@@ -438,7 +457,7 @@ func _engage(enemy: Node3D, delta: float) -> void:
 	var dist := to.length()
 	if dist <= attack_range:
 		velocity = Vector3.ZERO
-		move_and_slide()
+		_guarded_slide(delta)
 		_face(to, delta)
 		if _cooldown <= 0.0:
 			_cooldown = attack_interval
@@ -459,12 +478,67 @@ func _fire_at(enemy: Node3D) -> void:
 	enemy.take_damage(attack_damage, self)
 
 
+## Ravine crossing hint (Phase 2.10). Straight steering walks into the
+## gorge rim when the destination is across the ravine; route through the
+## Heavy Bridge deck ends instead. Not a full pathing rewrite: only when
+## the straight segment actually crosses the gorge band do we substitute
+## a bridge-end waypoint.
+const GORGE_MIN := Vector2(10.0, -40.0)
+const GORGE_MAX := Vector2(26.0, 24.0)
+const DECK_WEST := Vector3(4.0, 0.0, 0.0)
+const DECK_EAST := Vector3(32.0, 0.0, 0.0)
+
+
+func _route_target(dest: Vector3) -> Vector3:
+	var pos := global_position
+	if not _segment_crosses_gorge(pos, dest):
+		return dest
+	if _on_deck(pos):
+		# On the deck: exit at the end on the destination's side.
+		if dest.x > GORGE_MAX.x:
+			return DECK_EAST
+		if dest.x < GORGE_MIN.x:
+			return DECK_WEST
+		return dest
+	# Off the deck: enter at our side's end.
+	return DECK_WEST if pos.x < 18.0 else DECK_EAST
+
+
+func _on_deck(pos: Vector3) -> bool:
+	return absf(pos.z) < 7.5 and pos.x > 1.0 and pos.x < 34.5
+
+
+func _segment_crosses_gorge(a: Vector3, b: Vector3) -> bool:
+	# Slab test on the XZ segment against the gorge rect.
+	var d := Vector2(b.x - a.x, b.z - a.z)
+	var t0 := 0.0
+	var t1 := 1.0
+	for axis in [0, 1]:
+		var av: float = a.x if axis == 0 else a.z
+		var dv: float = d.x if axis == 0 else d.y
+		var mn: float = GORGE_MIN.x if axis == 0 else GORGE_MIN.y
+		var mx: float = GORGE_MAX.x if axis == 0 else GORGE_MAX.y
+		if absf(dv) < 1e-6:
+			if av < mn or av > mx:
+				return false
+		else:
+			var ta := (mn - av) / dv
+			var tb := (mx - av) / dv
+			var tmin := minf(ta, tb)
+			var tmax := maxf(ta, tb)
+			t0 = maxf(t0, tmin)
+			t1 = minf(t1, tmax)
+			if t0 > t1:
+				return false
+	return true
+
+
 func _steer_toward(dest: Vector3, delta: float) -> void:
 	var to: Vector3 = dest - global_position
 	to.y = 0.0
 	if to.length() < 0.1:
 		velocity = Vector3.ZERO
-		move_and_slide()
+		_guarded_slide(delta)
 		return
 	var dir := to.normalized()
 	# Obstacle slide (Phase 2.7): straight steering pins the walker on
@@ -493,8 +567,24 @@ func _steer_toward(dest: Vector3, delta: float) -> void:
 				_slide_left = 0.4
 				blended = (dir + tangent * 0.9).normalized()
 	velocity = Vector3(blended.x * move_speed, 0.0, blended.z * move_speed)
-	move_and_slide()
+	_guarded_slide(delta)
+	_snap_ground()
 	_face(blended, delta)
+
+
+## Phase 2.10: production terrain has real elevation (ramps, bridge deck).
+## The walker rides the same height field as infantry (MapNav is wired to
+## the terrain heightmap; bridge decks register as height overrides).
+func _snap_ground() -> void:
+	if _map_nav != null and is_instance_valid(_map_nav) and _map_nav.has_method("get_ground_height"):
+		var p := global_position
+		p.y = float(_map_nav.call("get_ground_height", p.x, p.z))
+		global_position = p
+		return
+	if _terrain != null and is_instance_valid(_terrain) and _terrain.has_method("get_height"):
+		var p := global_position
+		p.y = float(_terrain.call("get_height", p.x, p.z))
+		global_position = p
 
 
 func _face(dir: Vector3, delta: float) -> void:
