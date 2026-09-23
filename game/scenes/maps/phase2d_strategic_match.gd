@@ -15,6 +15,16 @@ const WalkerDef: UnitDefinition = preload("res://resources/units/gf_walker.tres"
 const HqDef: BuildingDefinition = preload("res://resources/buildings/gf_hq.tres")
 const HqGLB: PackedScene = preload("res://assets/models/gearforge_hq_command.glb")
 const AetherGLB: PackedScene = preload("res://assets/models/gearforge_aether_well.glb")
+## Phase 2.9 Map Production Kit 01 (existing assets only, no new modeling).
+const BridgeGLB: PackedScene = preload("res://assets/models/map/gearforge_bridge_heavy.glb")
+const FortressGateGLB: PackedScene = preload("res://assets/models/map/gearforge_fortress_gate.glb")
+const WallStraightGLB: PackedScene = preload("res://assets/models/map/gearforge_wall_straight.glb")
+const WallTowerGLB: PackedScene = preload("res://assets/models/map/gearforge_wall_tower.glb")
+const BastionGLB: PackedScene = preload("res://assets/models/map/gearforge_defensive_bastion.glb")
+const CliffStraightGLB: PackedScene = preload("res://assets/models/map/gearforge_cliff_straight.glb")
+const CliffLargeGLB: PackedScene = preload("res://assets/models/map/gearforge_cliff_large.glb")
+const TrenchGLB: PackedScene = preload("res://assets/models/map/gearforge_trench_industrial.glb")
+const RoadStraightGLB: PackedScene = preload("res://assets/models/map/gearforge_road_straight.glb")
 const WestDef: CityDefinition = preload("res://resources/cities/west_foundry.tres")
 const NorthDef: CityDefinition = preload("res://resources/cities/north_relay.tres")
 const CentralDef: CityDefinition = preload("res://resources/cities/central_nexus.tres")
@@ -45,13 +55,13 @@ const SOUTH_CITY_POS := Vector3(-2, 0, 18)
 const EAST_CITY_POS := Vector3(22, 0, -4)
 
 const ROCKS: Array = [
-	[Vector2(-12, -8), 2.0], [Vector2(14, 10), 1.8], [Vector2(-28, -14), 1.6],
+	[Vector2(14, 10), 1.8], [Vector2(-28, -14), 1.6],
 	[Vector2(10, -28), 2.2], [Vector2(-10, 28), 1.7], [Vector2(28, 12), 1.9],
 	[Vector2(-38, 8), 1.8], [Vector2(38, -8), 1.8],
 ]
 const TREES: Array = [
 	Vector2(-28, -22), Vector2(-16, -30), Vector2(16, 28), Vector2(28, 20),
-	Vector2(-10, 10), Vector2(12, -10), Vector2(-38, -2), Vector2(38, 2),
+	Vector2(12, -10), Vector2(-38, -2), Vector2(38, 2),
 	Vector2(8, 26), Vector2(-8, -28),
 ]
 
@@ -95,8 +105,10 @@ func _ready() -> void:
 	map_nav.register_obstacle_rect(PLAYER_BASE_POS, Vector2(15, 13))
 	map_nav.register_obstacle_rect(ENEMY_BASE_POS, Vector2(15, 13))
 	_build_decor()
+	_build_map_kit_obstacles()
 	map_nav.build($GroundRoot)
 	_build_roads()
+	_build_map_kit()
 	_spawn_hq(true, PLAYER_BASE_POS)
 	_spawn_hq(false, ENEMY_BASE_POS)
 	_spawn_city($WestCity as RTSCity, WestDef, WEST_CITY_POS)
@@ -483,6 +495,149 @@ func _build_roads() -> void:
 	_road_line(mat, [PLAYER_BASE_POS, WEST_CITY_POS, CENTRAL_CITY_POS, EAST_CITY_POS, ENEMY_BASE_POS])
 	_road_line(mat, [WEST_CITY_POS, NORTH_CITY_POS, CENTRAL_CITY_POS])
 	_road_line(mat, [WEST_CITY_POS, SOUTH_CITY_POS, CENTRAL_CITY_POS])
+
+
+# ================================================================ Phase 2.9
+## Map Production Kit 01 integration. Gameplay topology (5 cities / 7
+## territories / 2 HQs / 3 routes) is unchanged; this pass adds the
+## production battlefield structure on top: a central ravine with a real
+## heavy bridge, fortified enemy approach with a Fortress Gate, and cliff
+## elevation framing the field. Assets are existing GLBs (no new modeling).
+
+## Layout (x right/east, z down/south; player SW, enemy NE):
+## - Central ravine: trench modules run north-south at x in [-2.5, 13.5]
+##   (through Central (0,0)), 16m each. The only crossing is the Heavy
+##   Bridge at (4.5, 0) spanning the ravine on the Central->East route.
+## - Fortress approach: gate at (19, -4) facing the enemy advance, with
+##   walls/tower/bastion flanking, just before East Bastion (22,-4).
+## - Cliffs: south-west of Central (mass around (-22,20)) and the map's
+##   north-east edge, so the field reads elevated instead of flat.
+
+const TRENCH_XS: Array = [-0.5, 15.5]
+const TRENCH_ZS: Array = [-8.0, 8.0]
+const BRIDGE_POS := Vector3(6.5, 0, 0)
+const GATE_POS := Vector3(21, 0, -4)
+const GATE_YAW := 0.0 # opening faces west (player advance), axis along z
+
+
+func _kit_place(parent: Node3D, glb: PackedScene, pos: Vector3, yaw_deg: float, cast_shadow := true) -> Node3D:
+	var inst := glb.instantiate() as Node3D
+	inst.position = pos
+	inst.rotation.y = deg_to_rad(yaw_deg)
+	parent.add_child(inst)
+	if cast_shadow:
+		for c in _all_meshes(inst):
+			(c as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	return inst
+
+
+func _kit_collision(parent: Node3D, size: Vector3, pos: Vector3, yaw_deg: float = 0.0) -> void:
+	var body := StaticBody3D.new()
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.position = pos
+	body.rotation.y = deg_to_rad(yaw_deg)
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	col.shape = shape
+	body.add_child(col)
+	parent.add_child(body)
+
+
+## Nav obstacles must register before map_nav.build(); keep them aligned
+## with the collision boxes used in _build_map_kit().
+func _build_map_kit_obstacles() -> void:
+	# Ravine (trench) columns: two impassable bands, bridged at (6.5,0).
+	# The west band runs at x=-3 (bridge approach) and the east band at
+	# x=14; the deck between them is the only crossing. No extra bands.
+	map_nav.register_obstacle_rect(Vector3(-3.0, 0, 0), Vector2(4.0, 32.0))
+	map_nav.register_obstacle_rect(Vector3(14.0, 0, 0), Vector2(4.0, 32.0))
+	# Bridge footprint itself is walkable; the ravine bands create the choke.
+	# Fortress walls flanking the gate (gate opening stays walkable).
+	map_nav.register_obstacle_rect(GATE_POS + Vector3(0, 0, -14.0), Vector2(6.0, 16.0))
+	map_nav.register_obstacle_rect(GATE_POS + Vector3(0, 0, 14.0), Vector2(6.0, 16.0))
+	map_nav.register_obstacle_rect(GATE_POS + Vector3(0, 0, -24.0), Vector2(8.0, 10.0))
+	map_nav.register_obstacle_rect(GATE_POS + Vector3(0, 0, 24.0), Vector2(8.0, 10.0))
+	# Cliff masses.
+	map_nav.register_obstacle_rect(Vector3(-22, 0, 20), Vector2(30.0, 18.0))
+	map_nav.register_obstacle_rect(Vector3(28, 0, -20), Vector2(30.0, 18.0))
+	map_nav.register_obstacle_rect(Vector3(-34, 0, -22), Vector2(16.0, 10.0))
+	map_nav.register_obstacle_rect(Vector3(38, 0, 10), Vector2(16.0, 10.0))
+
+
+func _build_map_kit() -> void:
+	# --- Central ravine (industrial trench) ---
+	# Visual modules only fill the ravine columns; gameplay walls sit at
+	# the far edges so the Heavy Bridge between them is the only crossing.
+	for x in TRENCH_XS:
+		for z in TRENCH_ZS:
+			_kit_place(deco_root, TrenchGLB, Vector3(float(x), -0.4, z), 0.0)
+	# West ravine wall (x = -3 band) and east ravine wall (x = 14 band).
+	# The bridge deck at (6.5, 0) bridges the gap between them.
+	_kit_collision(obstacles_root, Vector3(4.0, 9.0, 32.0), Vector3(-3.0, 4.5, 0))
+	_kit_collision(obstacles_root, Vector3(4.0, 9.0, 32.0), Vector3(14.0, 4.5, 0))
+	# Trench pipes dressing under the bridge line (visual only).
+	_kit_place(deco_root, TrenchGLB, Vector3(-0.5, -0.4, -16.0), 0.0)
+
+	# --- Heavy Bridge over the ravine on the Central -> East route ---
+	# Deck is flat at y=0 across x=[-11.75, 20.75]; 14m wide, Titan-capable.
+	var bridge := _kit_place(deco_root, BridgeGLB, BRIDGE_POS, 90.0)
+	bridge.name = "MapKitBridge"
+	# Walkable deck: a solid traversal surface across the ravine bands so
+	# straight-steering walkers and infantry never dip into the trench.
+	# Thin enough that ground snapping still reads it as the floor.
+	_kit_collision(obstacles_root, Vector3(13.0, 0.3, 13.5), BRIDGE_POS + Vector3(0, -0.6, 0))
+
+	# --- Fortress Gate on the enemy approach (East Bastion line) ---
+	var gate := _kit_place(deco_root, FortressGateGLB, GATE_POS, GATE_YAW)
+	gate.name = "MapKitFortressGate"
+	# Gate pillars (opening is 10m wide along z; keep it walkable).
+	_kit_collision(obstacles_root, Vector3(7.0, 21.0, 7.0), GATE_POS + Vector3(0, 10.5, -8.5))
+	_kit_collision(obstacles_root, Vector3(7.0, 21.0, 7.0), GATE_POS + Vector3(0, 10.5, 8.5))
+	# Flanking walls + tower + bastion (collision mirrors nav obstacles).
+	_kit_place(deco_root, WallStraightGLB, GATE_POS + Vector3(0, 0, -14.0), 0.0)
+	_kit_collision(obstacles_root, Vector3(6.0, 9.3, 16.0), GATE_POS + Vector3(0, 4.6, -14.0))
+	_kit_place(deco_root, WallStraightGLB, GATE_POS + Vector3(0, 0, 14.0), 0.0)
+	_kit_collision(obstacles_root, Vector3(6.0, 9.3, 16.0), GATE_POS + Vector3(0, 4.6, 14.0))
+	_kit_place(deco_root, WallTowerGLB, GATE_POS + Vector3(0, 0, -24.0), 0.0)
+	_kit_collision(obstacles_root, Vector3(8.0, 17.0, 8.0), GATE_POS + Vector3(0, 8.5, -24.0))
+	_kit_place(deco_root, BastionGLB, GATE_POS + Vector3(-4.0, 0, 24.0), 180.0)
+	_kit_collision(obstacles_root, Vector3(10.0, 9.8, 8.0), GATE_POS + Vector3(-4.0, 4.9, 24.0))
+
+	# --- Cliff elevation framing the field ---
+	# South-west mass behind West Foundry / South approach.
+	_kit_place(deco_root, CliffLargeGLB, Vector3(-22, -0.15, 20), 0.0)
+	_kit_place(deco_root, CliffStraightGLB, Vector3(-34, 0, 14), 0.0)
+	_kit_collision(obstacles_root, Vector3(30.0, 12.0, 18.0), Vector3(-22, 6.0, 20))
+	# North-east edge behind the enemy base (backs the fortress line).
+	_kit_place(deco_root, CliffLargeGLB, Vector3(28, -0.15, -20), 180.0)
+	_kit_place(deco_root, CliffStraightGLB, Vector3(38, 0, 8), 90.0)
+	_kit_collision(obstacles_root, Vector3(30.0, 12.0, 18.0), Vector3(28, 6.0, -20))
+	# Side cliffs (map silhouette, off the main lanes; west one sits clear
+	# of the bridge approach corridor at z=-8).
+	_kit_place(deco_root, CliffStraightGLB, Vector3(-34, 0, -22), 90.0)
+	_kit_collision(obstacles_root, Vector3(16.0, 8.0, 10.0), Vector3(-34, 4.0, -22), 90.0)
+	_kit_place(deco_root, CliffStraightGLB, Vector3(38, 0, 10), 90.0)
+	_kit_collision(obstacles_root, Vector3(16.0, 8.0, 10.0), Vector3(38, 4.0, 10), 90.0)
+
+	# --- Road slabs on the key routes (kit road over the dirt strip) ---
+	for p in [
+		Vector3(-27, 0, -14), Vector3(-22, 0, -6),  # player HQ -> West
+		Vector3(-16, 0, 2), Vector3(-9, 0, 1),      # West -> Central
+		Vector3(4.5, 0, 0),                          # bridge deck line
+		Vector3(11, 0, -2), Vector3(16.5, 0, -4),  # Central -> East -> gate
+		Vector3(24, 0, -4), Vector3(28, 0, 12),    # gate -> enemy base
+	]:
+		_kit_place(deco_root, RoadStraightGLB, Vector3(p.x, _ground_y(p.x, p.z) + 0.05, p.z), _road_yaw(p), false)
+
+
+func _road_yaw(p: Vector3) -> float:
+	# Slabs run along the dominant route axis; the central corridor is
+	# mostly east-west so yaw ~90deg, while the base/gate spurs vary.
+	if absf(p.x) < 3.0 and absf(p.z) > 10.0:
+		return 0.0
+	return 90.0
 
 
 func _road_line(mat: Material, points: Array) -> void:

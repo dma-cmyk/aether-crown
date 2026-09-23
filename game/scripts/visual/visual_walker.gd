@@ -471,10 +471,16 @@ func _steer_toward(dest: Vector3, delta: float) -> void:
 	# circular blockers (city/HQ/rock collisions). Blending a tangent that
 	# follows the contact normal lets it walk around instead of stalling —
 	# the same "slide along the wall" players expect, without full navmesh.
+	# A slide that would walk AWAY from the destination is dropped so the
+	# walker always keeps closing distance (never pins itself reversing).
 	var blended := dir
 	if _slide_left > 0.0:
 		_slide_left -= delta
-		blended = (dir + _slide_dir * 0.9).normalized()
+		if _slide_dir.dot(dir) > 0.05:
+			blended = (dir + _slide_dir * 0.9).normalized()
+		else:
+			_slide_left = 0.0
+			_slide_dir = Vector3.ZERO
 	elif is_on_wall():
 		var n := get_wall_normal()
 		n.y = 0.0
@@ -482,9 +488,10 @@ func _steer_toward(dest: Vector3, delta: float) -> void:
 			var tangent := Vector3(-n.z, 0.0, n.x).normalized()
 			if tangent.dot(dir) < 0.0:
 				tangent = -tangent
-			_slide_dir = tangent
-			_slide_left = 0.4
-			blended = (dir + tangent * 0.9).normalized()
+			if tangent.dot(dir) > 0.05:
+				_slide_dir = tangent
+				_slide_left = 0.4
+				blended = (dir + tangent * 0.9).normalized()
 	velocity = Vector3(blended.x * move_speed, 0.0, blended.z * move_speed)
 	move_and_slide()
 	_face(blended, delta)
